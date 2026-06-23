@@ -175,7 +175,7 @@ public:
 	void setView(const View &v) { m_view = v; }
 	const View &getView() const { return m_view; }
 	View getDefaultView() const { return View(Vector2f(m_w / 2.0f, m_h / 2.0f), Vector2f((float)m_w, (float)m_h)); }
-	bool pollEvent(Event &) { return false; }  // backend fills this in
+	bool pollEvent(Event &e);               // backend: sfml_backend.cpp (DualShock -> keys)
 	void setFramerateLimit(unsigned int) {}
 	Vector2u getSize() const { return Vector2u(m_w, m_h); }
 };

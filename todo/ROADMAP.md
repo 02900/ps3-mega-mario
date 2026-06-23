@@ -88,10 +88,19 @@ entity creation, rendered with **SFML 2.6**:
   **nearest-neighbour** filtering for crisp pixel art) and **config parsing from memory**
   (`assets.txt`/`level1.txt`) land in Phase 5 with the real scene rendering.
 
-### Phase 4 — Input ⬜
-- Map the DualShock to the game's `Action` system (`sf::Keyboard` → pad), using the
-  retained-packet + edge/level patterns (`docs/PATTERNS.md` §2).
-- **Exit criteria:** menu navigation + in-game move/jump respond to the pad.
+### Phase 4 — Input ✅ (backend; full game-input verify with Phase 5)
+- ✅ `sf::RenderWindow::pollEvent` is implemented in `source/sfml_backend.cpp`: it reads
+  the DualShock (retained-packet pattern, `docs/PATTERNS.md` §2.1) and emits
+  `sf::Event` KeyPressed/KeyReleased via a small event queue — the exact path the game's
+  `sUserInput()` consumes.
+- ✅ Mapping (each logical key OR-combines pad buttons): D-pad/L-stick → **W/A/S/D**
+  (Up·Jump / Left / Down / Right), **Cross** → W (jump), **Circle** → Enter (menu select),
+  **Square** → Space (shoot), **Triangle** → P (pause), **Start** → Escape (quit/back) —
+  covering both `Scene_Menu` and `Scene_Play` action sets.
+- ✅ Smoke test: Mega Man moves with the D-pad/stick and the HUD shows the last action,
+  proving the press/release event flow. Builds green (`src.self` ~864 KB).
+- ⬜ **Exit criteria — menu nav + in-game move/jump on the real game:** verified once the
+  game actually runs (Phase 5); the input layer itself is done.
 
 ### Phase 5 — Rendering & camera ⬜
 - Sprites, animations, and the **2D scrolling camera** (`sf::View` → `screen = world −

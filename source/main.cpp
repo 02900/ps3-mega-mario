@@ -116,9 +116,37 @@ int main(int argc, const char *argv[])
 	block.setScale(1.5f, 1.5f);  block.setPosition(360, 300);
 	cloud.setScale(1.5f, 1.5f);  cloud.setPosition(560, 110);
 
+	(void)ok;
+	bool held_l = false, held_r = false, held_u = false, held_d = false;
+	const char *last_act = "Move with D-pad / left stick";
+
 	while (running) {
 		if (start_pressed())
 			running = 0;
+
+		/* Drive movement from the shim's key events (same path the game uses). */
+		sf::Event ev;
+		while (win.pollEvent(ev)) {
+			if (ev.type != sf::Event::KeyPressed && ev.type != sf::Event::KeyReleased)
+				continue;
+			bool dn = (ev.type == sf::Event::KeyPressed);
+			switch (ev.key.code) {
+			case sf::Keyboard::A:     held_l = dn; if (dn) last_act = "Left  (A)";        break;
+			case sf::Keyboard::D:     held_r = dn; if (dn) last_act = "Right (D)";        break;
+			case sf::Keyboard::W:     held_u = dn; if (dn) last_act = "Up / Jump (W)";    break;
+			case sf::Keyboard::S:     held_d = dn; if (dn) last_act = "Down (S)";         break;
+			case sf::Keyboard::Enter: if (dn) last_act = "Enter / select (Circle)";      break;
+			case sf::Keyboard::Space: if (dn) last_act = "Shoot (Square)";               break;
+			case sf::Keyboard::P:     if (dn) last_act = "Pause (Triangle)";             break;
+			default: break;
+			}
+		}
+		sf::Vector2f pos = hero.getPosition();
+		if (held_l) pos.x -= 3.0f;
+		if (held_r) pos.x += 3.0f;
+		if (held_u) pos.y -= 3.0f;
+		if (held_d) pos.y += 3.0f;
+		hero.setPosition(pos);
 
 		begin_2d_frame();
 		ya2d_drawFillRectZ(0, SCREEN_HEIGHT - 60, 0, SCREEN_WIDTH, 60, GROUND_COL);
@@ -126,8 +154,8 @@ int main(int argc, const char *argv[])
 		win.draw(block);
 		win.draw(hero);
 		display_ttf_string(60, 40, "MEGA MARIO", 0xFFD23FFF, 0, 36, 48);
-		display_ttf_string(62, 96, ok ? "Phase 3 - assets load + sprite draw (via SFML shim)"
-		                              : "Phase 3 - ASSET LOAD FAILED", 0xA0A0A0FF, 0, 13, 18);
+		display_ttf_string(62, 96, "Phase 4 - input (DualShock -> SFML key events)", 0xA0A0A0FF, 0, 13, 18);
+		display_ttf_string(62, 134, last_act, COLOR_WHITE, 0, 14, 20);
 		display_ttf_string(60, SCREEN_HEIGHT - 100, "Press START to exit", COLOR_WHITE, 0, 13, 18);
 		tiny3d_Flip();
 
