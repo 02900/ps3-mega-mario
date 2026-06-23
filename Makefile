@@ -50,7 +50,8 @@ LIBS		:=	-lya2d -lfont3d -ltiny3d -lsimdmath \
 # original C++20 source is built at C++17 — see todo/ROADMAP.md).
 #---------------------------------------------------------------------------------
 CFLAGS		=	-O2 -Wall -mcpu=cell -std=gnu99 $(MACHDEP) $(INCLUDE)
-CXXFLAGS	=	-O2 -Wall -mcpu=cell -std=gnu++17 -fno-exceptions -fno-rtti $(MACHDEP) $(INCLUDE)
+# -include ps3_compat.h: provide std::to_string / stoi / stof (missing on newlib).
+CXXFLAGS	=	-O2 -Wall -mcpu=cell -std=gnu++17 -fno-exceptions -fno-rtti -include ps3_compat.h $(MACHDEP) $(INCLUDE)
 LDFLAGS		=	$(MACHDEP) -Wl,-Map,$(notdir $@).map
 
 #---------------------------------------------------------------------------------

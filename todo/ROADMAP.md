@@ -63,7 +63,13 @@ entity creation, rendered with **SFML 2.6**:
   shim — mixing hand-drawn text with the sprite scene caused frame glitches in the sister
   port. So `sf::Text`/`sf::Font` get a minimal stub (enough to link), and the UI screens
   are implemented natively in Clay (Phase 7).
-- **Exit criteria:** the ECS game code compiles & links unchanged against the shim.
+- ✅ **Done.** The header-only `include/SFML/{System,Window,Graphics,Audio}.hpp` shim
+  covers the ~20 methods the game uses; the **entire ECS (`source/*.cpp`, 1,297 LOC)
+  compiles & links UNCHANGED** at `gnu++17` (`src.self` ~808 KB). `std::to_string`/`stoi`/
+  `stof` (absent on newlib) are supplied by `include/ps3_compat.h`, force-included via the
+  Makefile. The bring-up `main.cpp` is still the entry; the ECS is linked but dormant.
+- ⬜ Backend + running the game (load assets from memory, draw via ya2d) follow in
+  Phases 3 / 5.
 
 ### Phase 3 — Asset pipeline ⬜
 - Embed the 22 sprites + fonts + `.txt` configs via `bin2o` (`data/`); port

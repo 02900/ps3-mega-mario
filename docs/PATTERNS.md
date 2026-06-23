@@ -305,6 +305,15 @@ the game code compiles nearly unchanged.
   separately from the C `-std=gnu99`; don't let `CXXFLAGS = CFLAGS` apply gnu99 to C++).
   Replace C++20-only constructs (concepts, ranges, `<bit>`, designated-init quirks) as you
   hit them. `-fno-exceptions -fno-rtti` keeps the binary lean if the game doesn't need them.
+- **newlib's libstdc++ lacks `std::to_string` / `std::stoi` / `std::stof`** ("'to_string'
+  is not a member of 'std'"). Provide them in a tiny `ps3_compat.h` (snprintf / strtol
+  based) and **force-include it everywhere** via `CXXFLAGS += -include ps3_compat.h` — no
+  edits to the original source needed.
+- **Build against a stub shim first.** A header-only shim with the ~20 methods the game
+  actually calls is enough to get the whole codebase *compiling & linking* (stub bodies),
+  before any real rendering exists — a huge, verifiable milestone that de-risks the rest.
+  Keep the texture handle an opaque `void*` in the header so it stays pure C++ (no ya2d
+  include); the real backend `.cpp` fills it in later.
 - **2D camera = subtract the view offset at draw time.** A side-scroller's `sf::View`
   becomes `screen = world - camera`; cull sprites outside the screen. No 3D pipeline, no
   z-buffer — just ya2d quads in `tiny3d_Project2D` (painter order = draw order).
