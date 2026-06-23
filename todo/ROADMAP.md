@@ -47,7 +47,8 @@ entity creation, rendered with **SFML 2.6**:
   (`stdlib.h`/`malloc.h`/`string.h`) **pre-included** so `machine/malloc.h`'s `vec_*` decls
   don't land inside the `extern "C"` block and clash.
 - ✅ `make` builds a valid `src.self` (~428 KB); the trivial test screen replaces the stub.
-- ⬜ **Exit criteria — boots to the test screen on hardware:** confirm on PS3/RPCS3.
+- ✅ **Exit criteria — boots to the test screen:** confirmed on RPCS3 (sky + ground +
+  "MEGA MARIO" title render; START exits). On-PS3-hardware still to be confirmed.
 - Note: bringing the original `src/` in + the SFML shim moved to **Phase 2** (it was too
   much for one phase; Phase 1 is the clean rendering foundation).
 
