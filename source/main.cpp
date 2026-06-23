@@ -34,8 +34,6 @@
 #define GROUND_COL   0xC84C0CFF   /* brick brown (RGBA for ya2d)               */
 
 static int running = 1;
-static padInfo pad_info;
-static padData pad_data;
 static u32 *ttf_texture = nullptr;
 
 static void sys_callback(u64 status, u64 param, void *userdata)
@@ -62,21 +60,6 @@ static void init_screen()
 	ya2d_init();
 	init_fonts();
 	set_ttf_window(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, 0);
-}
-
-/* Edge-triggered START so a held button doesn't re-fire. */
-static int start_pressed()
-{
-	static u32 prev = 0;
-	u32 cur = 0;
-	ioPadGetInfo(&pad_info);
-	if (pad_info.status[0]) {
-		ioPadGetData(0, &pad_data);
-		cur = pad_data.BTN_START;
-	}
-	u32 pressed = cur & ~prev;
-	prev = cur;
-	return pressed != 0;
 }
 
 static void begin_2d_frame()
@@ -121,23 +104,23 @@ int main(int argc, const char *argv[])
 	const char *last_act = "Move with D-pad / left stick";
 
 	while (running) {
-		if (start_pressed())
-			running = 0;
-
-		/* Drive movement from the shim's key events (same path the game uses). */
+		/* The backend's pollEvent is now the ONLY pad reader (a second reader
+		 * would steal the fresh packet and starve this one). Exit via Escape
+		 * (mapped from Start). */
 		sf::Event ev;
 		while (win.pollEvent(ev)) {
 			if (ev.type != sf::Event::KeyPressed && ev.type != sf::Event::KeyReleased)
 				continue;
 			bool dn = (ev.type == sf::Event::KeyPressed);
 			switch (ev.key.code) {
-			case sf::Keyboard::A:     held_l = dn; if (dn) last_act = "Left  (A)";        break;
-			case sf::Keyboard::D:     held_r = dn; if (dn) last_act = "Right (D)";        break;
-			case sf::Keyboard::W:     held_u = dn; if (dn) last_act = "Up / Jump (W)";    break;
-			case sf::Keyboard::S:     held_d = dn; if (dn) last_act = "Down (S)";         break;
-			case sf::Keyboard::Enter: if (dn) last_act = "Enter / select (Circle)";      break;
-			case sf::Keyboard::Space: if (dn) last_act = "Shoot (Square)";               break;
-			case sf::Keyboard::P:     if (dn) last_act = "Pause (Triangle)";             break;
+			case sf::Keyboard::A:      held_l = dn; if (dn) last_act = "Left  (A)";       break;
+			case sf::Keyboard::D:      held_r = dn; if (dn) last_act = "Right (D)";       break;
+			case sf::Keyboard::W:      held_u = dn; if (dn) last_act = "Up / Jump (W)";   break;
+			case sf::Keyboard::S:      held_d = dn; if (dn) last_act = "Down (S)";        break;
+			case sf::Keyboard::Enter:  if (dn) last_act = "Enter / select (Circle)";     break;
+			case sf::Keyboard::Space:  if (dn) last_act = "Shoot (Square)";              break;
+			case sf::Keyboard::P:      if (dn) last_act = "Pause (Triangle)";            break;
+			case sf::Keyboard::Escape: if (dn) running = 0;                              break;
 			default: break;
 			}
 		}

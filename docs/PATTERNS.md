@@ -71,6 +71,13 @@ for (int i = 0; i < 2; i++) {
 and **don't** read into an uninitialized struct (a phantom/unconfigured port — common on
 RPCS3 — leaves stack garbage that sends a fighter flailing into a corner).
 
+⚠️ **Only ONE reader per port per frame.** `ioPadGetData` returns the fresh packet
+(`len > 0`) to the *first* caller in a frame; a second call the same frame gets `len == 0`.
+So if two places read port 0 (e.g. a `start_pressed()` helper *and* an event-poll backend),
+the second is permanently starved — it never sees `len > 0`, so its retained state never
+initializes and it produces no input (symptom: "only Start works, nothing else"). Have a
+single pad-read site and share its state.
+
 ### 2.2 Two controllers = two ports
 
 `padInfo.status[i]` flags each connected port; `ioPadGetData(i, &data)` reads a specific
