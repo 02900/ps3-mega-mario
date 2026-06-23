@@ -292,6 +292,15 @@ the game code compiles nearly unchanged.
   `sf::Music`/`sf::Sound` → MikMod, plus value types (`sf::Vector2`, `sf::Color`,
   `sf::IntRect`, `sf::RectangleShape`). Implement behaviour incrementally — stub first so
   it **links**, then fill in rendering/input/audio.
+- **C++↔C header interop.** The PS3 libs are C. Headers with their own
+  `#ifdef __cplusplus extern "C"` guards (`tiny3d.h`, `io/pad.h`, `sysutil.h`) include
+  normally; **un-guarded ones (`ya2d.h`) must be wrapped** in `extern "C"` from C++, or the
+  C++ compiler mangles the names → undefined references. ⚠️ But wrapping a header that
+  transitively pulls **system** headers (`ya2d.h` → `machine/malloc.h`) drags those into the
+  block and clashes ("conflicting declaration … with 'C' linkage"). Fix: **pre-include the C
+  system headers** (`<stdlib.h>`, `<malloc.h>`, `<string.h>`) *before* the `extern "C"` wrap
+  so their include guards are already set. Give any C helper you vendor (e.g. `ttf_render.h`)
+  its own `extern "C"` guard.
 - **`ppu-g++` is gcc 7.2 → no C++20.** Build the source at `-std=gnu++17` (set `CXXFLAGS`
   separately from the C `-std=gnu99`; don't let `CXXFLAGS = CFLAGS` apply gnu99 to C++).
   Replace C++20-only constructs (concepts, ranges, `<bit>`, designated-init quirks) as you

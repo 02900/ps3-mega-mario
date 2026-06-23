@@ -37,14 +37,19 @@ entity creation, rendered with **SFML 2.6**:
 - `extern/clay-ps3` submodule **checked in** but not compiled yet (its `clay_renderer.c`
   needs the `ttf_render` helper, vendored in Phase 1). The trivial `main.cpp` builds green.
 
-### Phase 1 — Build & toolchain green ⬜
-- Vendor `ttf_render.{c,h}` (from the template) and **re-add `extern/clay-ps3`** to the
-  Makefile `SOURCES` / `INCLUDES`.
-- Bring the original `src/*.{h,cpp}` into `source/`; **downgrade C++20 → C++17** (replace
-  concepts/ranges/etc. as the compiler flags them).
-- A minimal `main.cpp` that inits Tiny3D + ya2d and renders a blank frame; **stub the SFML
-  shim** (empty `sf::` types) so the ECS code *links*.
-- **Exit criteria:** `make` produces a valid `src.self`; boots to a blank screen.
+### Phase 1 — Build & toolchain green ✅
+- ✅ Vendored `ttf_render.{c,h}` (with an added `extern "C"` guard) and **re-added
+  `extern/clay-ps3`** to the Makefile `SOURCES` / `INCLUDES`. Clay now compiles (C).
+- ✅ A real C++ `main.cpp` inits Tiny3D + ya2d + fonts and renders a test frame
+  (sky + ground strip + "MEGA MARIO" title), exiting cleanly on START / XMB.
+- ✅ Solved the **C++↔C header interop**: `tiny3d.h`/`io/pad.h`/`sysutil.h` carry their own
+  `extern "C"` guards; `ya2d.h` doesn't, so it's wrapped — with the C system headers
+  (`stdlib.h`/`malloc.h`/`string.h`) **pre-included** so `machine/malloc.h`'s `vec_*` decls
+  don't land inside the `extern "C"` block and clash.
+- ✅ `make` builds a valid `src.self` (~428 KB); the trivial test screen replaces the stub.
+- ⬜ **Exit criteria — boots to the test screen on hardware:** confirm on PS3/RPCS3.
+- Note: bringing the original `src/` in + the SFML shim moved to **Phase 2** (it was too
+  much for one phase; Phase 1 is the clean rendering foundation).
 
 ### Phase 2 — SFML compatibility shim ⬜
 - Implement the `sf::` shim (`include/SFML/…`) over PS3 backends (see `docs/PATTERNS.md`

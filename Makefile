@@ -26,15 +26,14 @@ include $(PSL1GHT)/ppu_rules
 #---------------------------------------------------------------------------------
 # Directories
 #
-# The extern/clay-ps3 submodule is checked in, but NOT compiled yet: its
-# clay_renderer.c needs the ttf_render helper. Phase 1 (todo/ROADMAP.md) vendors
-# ttf_render.{c,h} and re-adds `extern/clay-ps3` to SOURCES / INCLUDES.
+# extern/clay-ps3 is the Clay UI submodule (git submodule update --init --recursive).
+# Its clay_renderer.c needs the ttf_render helper (vendored in source/ + include/).
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source
+SOURCES		:=	source extern/clay-ps3
 DATA		:=	data
-INCLUDES	:=	include
+INCLUDES	:=	include extern/clay-ps3
 PKGFILES	:=	pkgfiles
 
 #---------------------------------------------------------------------------------
