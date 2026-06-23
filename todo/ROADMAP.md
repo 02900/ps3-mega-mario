@@ -32,11 +32,14 @@ entity creation, rendered with **SFML 2.6**:
 
 ### Phase 0 — Scaffold ✅ (this commit)
 - Repo layout, **C++ Makefile** (`gnu++17`, `-fno-exceptions -fno-rtti`), `sfo.xml`
-  (`MEGAMARIO`), Docker `build.sh`/`deploy.sh`, CI (`build` + `lint`), README, this
-  roadmap, and `docs/PATTERNS.md` (carried-over PS3 conventions).
+  (`MEGAMARIO`), Docker `build.sh`/`deploy.sh`, CI (`build` + `lint`), README, themed
+  ICON0, this roadmap, and `docs/PATTERNS.md` (carried-over PS3 conventions).
+- `extern/clay-ps3` submodule **checked in** but not compiled yet (its `clay_renderer.c`
+  needs the `ttf_render` helper, vendored in Phase 1). The trivial `main.cpp` builds green.
 
 ### Phase 1 — Build & toolchain green ⬜
-- Add `extern/clay-ps3` as a git submodule.
+- Vendor `ttf_render.{c,h}` (from the template) and **re-add `extern/clay-ps3`** to the
+  Makefile `SOURCES` / `INCLUDES`.
 - Bring the original `src/*.{h,cpp}` into `source/`; **downgrade C++20 → C++17** (replace
   concepts/ranges/etc. as the compiler flags them).
 - A minimal `main.cpp` that inits Tiny3D + ya2d and renders a blank frame; **stub the SFML
