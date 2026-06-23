@@ -318,7 +318,17 @@ the game code compiles nearly unchanged.
   becomes `screen = world - camera`; cull sprites outside the screen. No 3D pipeline, no
   z-buffer — just ya2d quads in `tiny3d_Project2D` (painter order = draw order).
 - **Tilemaps / level configs** are usually plain `.txt`. Embed them with `bin2o` (name
-  them `*.bin`) and parse from memory, or ship them in the PKG `assets/`.
+  them `*.bin`) and parse from memory (`std::istringstream` over the embedded buffer — the
+  game's `fin >> token` loops work unchanged), or ship them in the PKG `assets/`.
+- **Asset paths → embedded buffers.** The game loads textures by file path; there's no
+  filesystem, so map **path basename → bin2o buffer** in a small generated registry and
+  have the shim's `loadFromFile` do the lookup → `ya2d_loadPNGfromBuffer`. No edits to the
+  game's asset code.
+- **⚠️ A C header with non-`extern` globals breaks multi-TU C++ links.** `ya2d_controls.h`
+  has `padData ya2d_paddata[7];` (no `extern`): in C that's a tentative def (merges); in
+  **C++ it's a real definition**, so two C++ TUs including `<ya2d/ya2d.h>` → "multiple
+  definition". Fix: include only the sub-headers you need (skip the offending one — we use
+  `io/pad.h` for input, not ya2d's), e.g. via a private `ya2d_lite.h`.
 
 ---
 

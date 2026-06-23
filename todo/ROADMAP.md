@@ -71,11 +71,22 @@ entity creation, rendered with **SFML 2.6**:
 - ⬜ Backend + running the game (load assets from memory, draw via ya2d) follow in
   Phases 3 / 5.
 
-### Phase 3 — Asset pipeline ⬜
-- Embed the 22 sprites + fonts + `.txt` configs via `bin2o` (`data/`); port
-  `Assets.cpp`/`Animation.cpp`/`Texture.h` to load textures from embedded buffers
-  (`ya2d_loadPNGfromBuffer`) and parse configs from memory.
-- **Exit criteria:** assets load; an animation frame draws on screen.
+### Phase 3 — Asset pipeline ✅ (sprite draw; sub-rect + configs in Phase 5)
+- ✅ Embedded the **22 PNG sprites** via `bin2o` (`data/`) + a generated
+  `source/asset_registry.cpp` mapping a path's **basename → embedded buffer**.
+- ✅ **`sf::Texture::loadFromFile`** now maps path → registry → `ya2d_loadPNGfromBuffer`,
+  and **`sf::RenderWindow::draw(Sprite)`** draws via `ya2d_drawTextureEx` (applying the
+  `sf::View` as a 2D camera offset) — implemented in `source/sfml_backend.cpp` (the only
+  TU that touches ya2d besides main).
+- ✅ Fixed a C++ multi-TU link clash: `ya2d/ya2d_controls.h` defines globals **without
+  `extern`** (duplicate symbols across C++ TUs) — added `include/ya2d_lite.h` (ya2d minus
+  controls; we use `io/pad.h` for input).
+- ✅ A smoke test in `main.cpp` loads + draws real sprites (megaman + question block +
+  cloud) through the shim. Builds green (`src.self` ~864 KB).
+- ⬜ **Exit criteria — sprites draw on hardware:** confirm on PS3/RPCS3.
+- Note: full-texture draw only (sprite-sheet **sub-rects** for animation frames, plus
+  **nearest-neighbour** filtering for crisp pixel art) and **config parsing from memory**
+  (`assets.txt`/`level1.txt`) land in Phase 5 with the real scene rendering.
 
 ### Phase 4 — Input ⬜
 - Map the DualShock to the game's `Action` system (`sf::Keyboard` → pad), using the

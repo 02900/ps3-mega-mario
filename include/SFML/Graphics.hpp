@@ -44,9 +44,9 @@ typedef Rect<float> FloatRect;
 // ---- Texture ------------------------------------------------------------
 class Texture {
 public:
-	void    *handle = nullptr;   // ya2d_Texture* (filled by the backend, Phase 3)
+	void    *handle = nullptr;   // ya2d_Texture* (filled by the backend)
 	Vector2u sz{1, 1};
-	bool loadFromFile(const std::string & /*path*/) { return true; }  // real load: Phase 3
+	bool loadFromFile(const std::string &path);   // backend: sfml_backend.cpp
 	Vector2u getSize() const { return sz; }
 };
 
@@ -168,10 +168,10 @@ public:
 	void close() { m_open = false; }
 	void clear(const Color & = Color()) {}
 	void display() {}
-	void draw(const Sprite &) {}
-	void draw(const Text &) {}
-	void draw(const RectangleShape &) {}
-	void draw(const Vertex *, std::size_t, PrimitiveType) {}
+	void draw(const Sprite &s);             // backend: sfml_backend.cpp (ya2d)
+	void draw(const Text &) {}              // UI -> Clay (Phase 7)
+	void draw(const RectangleShape &) {}    // backend: Phase 5
+	void draw(const Vertex *, std::size_t, PrimitiveType) {}  // backend: Phase 5
 	void setView(const View &v) { m_view = v; }
 	const View &getView() const { return m_view; }
 	View getDefaultView() const { return View(Vector2f(m_w / 2.0f, m_h / 2.0f), Vector2f((float)m_w, (float)m_h)); }

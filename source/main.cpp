@@ -16,23 +16,14 @@
 
 #include <cstdio>
 
-/* Pre-include the C system headers ya2d.h pulls in (it has no extern "C" guard),
- * so their own include guards are set BEFORE the extern "C" wrap below — otherwise
- * machine/malloc.h's vec_* decls land inside extern "C" and clash. */
-#include <stdlib.h>
-#include <malloc.h>
-#include <string.h>
-
 #include <ppu-types.h>
 #include <io/pad.h>
 #include <sysutil/sysutil.h>
 #include <tiny3d.h>
 
-extern "C" {
-#include <ya2d/ya2d.h>
-}
-
+#include "ya2d_lite.h"         // ya2d (minus controls) + C++/C interop boilerplate
 #include "ttf_render.h"
+#include <SFML/Graphics.hpp>   // the PS3 SFML shim (Phase 2/3)
 
 #define SCREEN_WIDTH  848
 #define SCREEN_HEIGHT 512
@@ -111,16 +102,33 @@ int main(int argc, const char *argv[])
 	init_screen();
 	ioPadInit(7);
 
+	/* Phase 3 smoke test: load real game sprites via the SFML shim + ya2d
+	 * backend and draw them (full-texture; sub-rect animations are Phase 5). */
+	sf::RenderWindow win;
+	win.setView(sf::View(sf::Vector2f(SCREEN_WIDTH / 2.0f, SCREEN_HEIGHT / 2.0f),
+	                     sf::Vector2f(SCREEN_WIDTH, SCREEN_HEIGHT)));  /* identity in 848x512 */
+	sf::Texture hero_tex, block_tex, cloud_tex;
+	bool ok = hero_tex.loadFromFile("assets/megaman/stand.png");
+	block_tex.loadFromFile("assets/mario/question1.png");
+	cloud_tex.loadFromFile("assets/mario/smallcloud.png");
+	sf::Sprite hero(hero_tex), block(block_tex), cloud(cloud_tex);
+	hero.setScale(2.0f, 2.0f);   hero.setPosition(120, 260);
+	block.setScale(1.5f, 1.5f);  block.setPosition(360, 300);
+	cloud.setScale(1.5f, 1.5f);  cloud.setPosition(560, 110);
+
 	while (running) {
 		if (start_pressed())
 			running = 0;
 
 		begin_2d_frame();
-		/* a ground strip + a title, so it's clearly alive */
 		ya2d_drawFillRectZ(0, SCREEN_HEIGHT - 60, 0, SCREEN_WIDTH, 60, GROUND_COL);
-		display_ttf_string(60, 60, "MEGA MARIO", 0xFFD23FFF, 0, 40, 52);
-		display_ttf_string(62, 120, "PS3 port - Phase 1 (engine bring-up)", 0xA0A0A0FF, 0, 14, 20);
-		display_ttf_string(60, SCREEN_HEIGHT - 100, "Press START to exit", COLOR_WHITE, 0, 14, 20);
+		win.draw(cloud);
+		win.draw(block);
+		win.draw(hero);
+		display_ttf_string(60, 40, "MEGA MARIO", 0xFFD23FFF, 0, 36, 48);
+		display_ttf_string(62, 96, ok ? "Phase 3 - assets load + sprite draw (via SFML shim)"
+		                              : "Phase 3 - ASSET LOAD FAILED", 0xA0A0A0FF, 0, 13, 18);
+		display_ttf_string(60, SCREEN_HEIGHT - 100, "Press START to exit", COLOR_WHITE, 0, 13, 18);
 		tiny3d_Flip();
 
 		sysUtilCheckCallback();
