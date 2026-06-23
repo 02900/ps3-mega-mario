@@ -55,8 +55,14 @@ entity creation, rendered with **SFML 2.6**:
 ### Phase 2 — SFML compatibility shim ⬜
 - Implement the `sf::` shim (`include/SFML/…`) over PS3 backends (see `docs/PATTERNS.md`
   §7): `RenderWindow`→tiny3d clear/flip, `Texture`→`ya2d_Texture`, `Sprite`→textured quad
-  (+`IntRect` sub-rect), `View`→2D camera offset, `Font`/`Text`→`ttf_render`/Clay,
-  `Color`/`Vector2`/`IntRect`/`RectangleShape` value types.
+  (+`IntRect` sub-rect), `View`→2D camera offset, `Color`/`Vector2`/`IntRect`/
+  `RectangleShape` value types.
+- **UI is Clay, not hand-drawn (`docs/PATTERNS.md` §3.5).** The shim renders the game
+  **scene** (tiles/sprites/player) with ya2d; the **menus (`Scene_Menu`) and HUD**
+  (score/coins/lives/time) are (re)built in **Clay**, *not* via a hand-drawn `sf::Text`
+  shim — mixing hand-drawn text with the sprite scene caused frame glitches in the sister
+  port. So `sf::Text`/`sf::Font` get a minimal stub (enough to link), and the UI screens
+  are implemented natively in Clay (Phase 7).
 - **Exit criteria:** the ECS game code compiles & links unchanged against the shim.
 
 ### Phase 3 — Asset pipeline ⬜
