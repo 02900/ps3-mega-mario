@@ -89,7 +89,8 @@ ps3-mega-mario/
 ├── data/                # Embedded assets (bin2o): sprites + level/asset .txt configs
 ├── pkgfiles/            # PKG payload: ICON0.PNG (assets/ is empty — everything is embedded)
 ├── extern/              # External deps (Clay UI: extern/clay-ps3)
-├── docs/                # PATTERNS.md (PS3 homebrew conventions) + api/ notes
+├── .claude/skills/      # Submodule: ps3-homebrew patterns, as Claude skills (ps3-homebrew-skills)
+├── docs/                # PATTERNS.md (now a pointer to the skills submodule) + api/ notes
 ├── scripts/             # Dockerized build.sh / deploy.sh wrappers
 ├── todo/                # → ROADMAP.md: the migration plan
 ├── ideas/               # Parked design notes (e.g. the glitch session-recorder)
@@ -101,8 +102,10 @@ ps3-mega-mario/
 ## Roadmap & conventions
 
 - **[todo/ROADMAP.md](todo/ROADMAP.md)** — the phase-by-phase migration plan.
-- **[docs/PATTERNS.md](docs/PATTERNS.md)** — reusable PS3/PSL1GHT patterns & gotchas
-  (pad input, colour formats, Clay UI, audio, packaging) from a prior port.
+- **[`.claude/skills/ps3-homebrew/`](https://github.com/02900/ps3-homebrew-skills)** — the
+  reusable PS3/PSL1GHT patterns & gotchas (pad input, colour formats, Clay UI, audio, porting),
+  vendored as a shared submodule **and** a set of Claude Code skills. Run
+  `git submodule update --init` to fetch it. (`docs/PATTERNS.md` is now just a pointer here.)
 
 ## Credits
 
