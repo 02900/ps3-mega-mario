@@ -1,11 +1,14 @@
 #include "Scene_Play.h"
 
-#include <fstream>
+#include <cmath>  // std::fabs — without it, abs() is C's int abs (truncates floats)
+#include <sstream>
 
 #include "Components.h"
 #include "GameEngine.h"
 #include "Physics.h"
 #include "Scene_Menu.h"
+#include "asset_registry.h"  // level layout comes from embedded memory (no disk)
+#include "audio.h"           // SFX hooks (jump / coin / brick / shoot / clear)
 
 Scene_Play::Scene_Play(GameEngine *gameEngine, std::string levelPath) {
   m_game = gameEngine;
@@ -29,7 +32,7 @@ void Scene_Play::init(const std::string &levelPath) {
 
   m_levelPath = levelPath;
 
-  std::ifstream fin(levelPath);
+  std::istringstream fin(load_config(levelPath));
   std::string type;
   while (fin >> type) {
     if (type == "Dec") {
@@ -131,6 +134,7 @@ void Scene_Play::sDoAction(const Action &action) {
     else if (action.name() == "Jump") {
       if (m_playerIsInGround) {
         m_player->getComponent<CInput>().up = true;
+        audio_play_jump();
       }
     } else if (action.name() == "Draw Grid")
       m_drawGrid = !m_drawGrid;
@@ -158,6 +162,7 @@ void Scene_Play::sDoAction(const Action &action) {
 }
 
 void Scene_Play::Shoot() {
+  audio_play_shoot();
   auto bullet = m_entityManager.addEntity("bullet");
   auto playerTransform = m_player->getComponent<CTransform>();
   bullet->addComponent<CTransform>(
@@ -178,7 +183,7 @@ void Scene_Play::Shoot() {
 float Scene_Play::getPlayerDirection() {
   float flip =
       m_player->getComponent<CAnimation>().animation.getSprite().getScale().x;
-  flip /= abs(flip);
+  flip /= std::fabs(flip);
   return flip;
 }
 
@@ -204,7 +209,7 @@ void Scene_Play::sAnimation() {
     anim.animation = m_game->assets().getAnimation("Run");
 
   auto spriteScale = anim.animation.getSprite().getScale();
-  anim.animation.getSprite().setScale(abs(spriteScale.x) * flip, spriteScale.y);
+  anim.animation.getSprite().setScale(std::fabs(spriteScale.x) * flip, spriteScale.y);
   if (input.right) {
     if (flip < 0)
       flipPlayer();
@@ -292,8 +297,10 @@ void Scene_Play::sCollision() {
       continue;
 
     std::string tileName = e->getComponent<CAnimation>().animation.getName();
-    if (tileName == "Flag" || tileName == "FlagPole")
+    if (tileName == "Flag" || tileName == "FlagPole") {
+      audio_play_levelclear();
       resetLevel();
+    }
 
     if (prevOverlap.x >= 0) {
       if (playerPos.y > tilePos.y) {
@@ -303,6 +310,7 @@ void Scene_Play::sCollision() {
         if (tileName == "Brick") {
           e->destroy();
           spawnExplosion(tilePos);
+          audio_play_brick();
         } else if (tileName == "QShade") {
           e->getComponent<CAnimation>().animation =
               m_game->assets().getAnimation("Question2");
@@ -331,6 +339,7 @@ void Scene_Play::sCollision() {
       if (e->getComponent<CAnimation>().animation.getName() == "Brick") {
         e->destroy();
         spawnExplosion(tilePos);
+        audio_play_brick();
       }
     }
   }
@@ -418,6 +427,7 @@ void Scene_Play::spawnExplosion(Vec2 pos) {
 }
 
 void Scene_Play::spawnCoin(Vec2 pos) {
+  audio_play_coin();
   auto e = m_entityManager.addEntity("coin");
   e->addComponent<CTransform>(Vec2(pos.x, pos.y - 64));
   e->addComponent<CAnimation>(m_game->assets().getAnimation("Coin"), true);

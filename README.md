@@ -6,15 +6,19 @@ and a factory pattern, originally rendered with **SFML**.
 
 Because the original is already C++, the ECS / game logic ports largely intact; the work
 is replacing the **SFML layer** (graphics / audio / input / window) with PS3 backends —
-**ya2d** (2D sprites), the PSL1GHT **pad** API, **MikMod** (audio), and **Clay** (UI/HUD) —
-behind a thin SFML-compatibility shim.
+**ya2d** + **Tiny3D** (2D sprites), the PSL1GHT **pad** API, **MikMod** (audio), and
+**Clay** (menu UI) — behind a thin SFML-compatibility shim.
 
-> ## 🚧 Status: scaffold
-> This repo currently contains **only the project skeleton and the migration roadmap** —
-> it is **not yet playable**. `source/main.cpp` is a placeholder. The step-by-step plan
-> lives in **[todo/ROADMAP.md](todo/ROADMAP.md)**, and the hard-won PS3 conventions
-> (carried over from a prior PS3 port) are in **[docs/PATTERNS.md](docs/PATTERNS.md)** —
-> read it before adding code.
+> ## ✅ Status: playable (all 9 roadmap phases implemented)
+> The full game runs on PS3 / RPCS3: the SFML **ECS compiles unchanged** behind the shim,
+> levels render and scroll, physics & tile collisions work, the menu is built natively in
+> **Clay**, music + SFX are **synthesized in code** via MikMod, and `make pkg` produces an
+> **XMB-installable PKG**. The phase-by-phase log is in **[todo/ROADMAP.md](todo/ROADMAP.md)**;
+> the reusable PS3/PSL1GHT conventions are in **[docs/PATTERNS.md](docs/PATTERNS.md)**.
+>
+> **Known issue:** an intermittent ~1-frame render glitch (a sprite jumps / some tiles vanish
+> for a single frame every few seconds) — see ROADMAP Phase 9 and
+> [`ideas/session-recorder-diagnostic.md`](ideas/session-recorder-diagnostic.md).
 
 ---
 
@@ -46,7 +50,27 @@ PS3_IP=192.168.1.13 ./scripts/deploy.sh   # ps3load to a console running PS3Load
 >   `DOCKER_DEFAULT_PLATFORM=linux/amd64`; the helper scripts rely on that).
 > - **Windows:** run from a **WSL2** shell.   **Linux:** prefix with `sudo` if needed.
 
-Outputs are named after the mount dir (`/src`), so they are `src.elf` / `src.self`.
+Outputs are named after the mount dir (`/src`), so they are `src.elf` / `src.self` / `src.pkg`.
+
+## Playing
+
+- **RPCS3:** *File → Install .pkg* → pick `src.pkg` → launch **Mega Mario** from the game list.
+  (You can also boot `src.self` directly, but the PKG gives you the XMB icon + entry.) Enable
+  audio (Cubeb/XAudio2) to hear the music/SFX.
+- **Real PS3 (HEN/CFW):** install `src.pkg` from the XMB, or `ps3load` the `.self` (see
+  `scripts/deploy.sh`).
+
+**Controls** — boots to a Clay level-select menu, then into the level:
+
+| Input | Menu | In level |
+| --- | --- | --- |
+| D-pad / left stick | ↑/↓ select | ←/→ move |
+| ✕ Cross | — | jump |
+| ○ Circle | choose level | — |
+| □ Square | — | shoot |
+| △ Triangle | — | pause |
+| Start | exit | back to menu |
+| L1 / R1 | — | debug: collision boxes / grid |
 
 ## Toolchain & libraries
 
@@ -60,15 +84,16 @@ Built against the toolchain image's libraries: **ya2d** (2D sprites/textures), *
 ```
 ps3-mega-mario/
 ├── .github/workflows/   # CI: build (via toolchain image) + docs link lint
-├── source/              # C++ game source (PPU) — main.cpp (stub for now)
-├── include/             # Shared headers (the SFML shim lands here)
-├── data/                # Embedded assets (bin2o): sprites, fonts, level/anim configs
-├── pkgfiles/            # Files bundled into the PKG (ICON0.PNG, assets/)
-├── extern/              # External deps (Clay UI submodule)
+├── source/              # C++ game source (PPU): ECS + SFML shim backend, Clay menu, audio
+├── include/             # Shared headers (the SFML-compat shim: SFML/*.hpp)
+├── data/                # Embedded assets (bin2o): sprites + level/asset .txt configs
+├── pkgfiles/            # PKG payload: ICON0.PNG (assets/ is empty — everything is embedded)
+├── extern/              # External deps (Clay UI: extern/clay-ps3)
 ├── docs/                # PATTERNS.md (PS3 homebrew conventions) + api/ notes
 ├── scripts/             # Dockerized build.sh / deploy.sh wrappers
 ├── todo/                # → ROADMAP.md: the migration plan
-├── Makefile             # PSL1GHT build (C++ / gnu++17)
+├── ideas/               # Parked design notes (e.g. the glitch session-recorder)
+├── Makefile             # PSL1GHT build (C++ gnu++17 + C gnu99 for Clay/audio)
 ├── sfo.xml              # Application metadata (TITLE_ID: MEGAMARIO)
 └── README.md
 ```

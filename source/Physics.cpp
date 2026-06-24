@@ -1,5 +1,7 @@
 #include "Physics.h"
 
+#include <cmath>  // std::fabs — without it, abs() is C's int abs (truncates floats)
+
 Vec2 Physics::GetOverlap(std::shared_ptr<Entity> a, std::shared_ptr<Entity> b) {
     auto& ca = a->getComponent<CBoundingBox>();
     auto& cb = b->getComponent<CBoundingBox>();
@@ -8,8 +10,8 @@ Vec2 Physics::GetOverlap(std::shared_ptr<Entity> a, std::shared_ptr<Entity> b) {
 
     Vec2 overlap(0, 0);
 
-    overlap.x = ca.halfSize.x + cb.halfSize.x - abs(posA.x - posB.x);
-    overlap.y = ca.halfSize.y + cb.halfSize.y - abs(posA.y - posB.y);
+    overlap.x = ca.halfSize.x + cb.halfSize.x - std::fabs(posA.x - posB.x);
+    overlap.y = ca.halfSize.y + cb.halfSize.y - std::fabs(posA.y - posB.y);
 
     return overlap;
 }
@@ -22,8 +24,8 @@ Vec2 Physics::GetPreviousOverlap(std::shared_ptr<Entity> a, std::shared_ptr<Enti
 
     Vec2 overlap(0, 0);
 
-    overlap.x = ca.halfSize.x + cb.halfSize.x - abs(posA.x - posB.x);
-    overlap.y = ca.halfSize.y + cb.halfSize.y - abs(posA.y - posB.y);
+    overlap.x = ca.halfSize.x + cb.halfSize.x - std::fabs(posA.x - posB.x);
+    overlap.y = ca.halfSize.y + cb.halfSize.y - std::fabs(posA.y - posB.y);
 
     return overlap;
 }

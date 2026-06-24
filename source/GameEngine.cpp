@@ -1,12 +1,14 @@
 #include "GameEngine.h"
 #include "Scene_Menu.h"
 #include "Scene_Play.h"
-#include <fstream>
+#include <sstream>
+
+#include "asset_registry.h"  // configs come from embedded memory, not disk (PS3)
 
 GameEngine::GameEngine(const std::string path) { init(path); }
 
 void GameEngine::init(const std::string &path) {
-  std::ifstream fin(path);
+  std::istringstream fin(load_config(path));
   std::string type;
   while (fin >> type) {
     if (type == "Texture") {

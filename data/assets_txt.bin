@@ -1,0 +1,47 @@
+Texture TexStand ../bin/assets/megaman/stand.png 56 64 
+Texture TexJump ../bin/assets/megaman/jump.png 66 76 
+Texture TexRun ../bin/assets/megaman/run.png 192 64
+Texture TexBullet ../bin/assets/megaman/bullet.png 20 14
+Texture TexExplosion ../bin/assets/others/explosion.png 640 67
+Texture TexCoin ../bin/assets/others/coin.png 540 68
+Texture TexBigBush ../bin/assets/mario/bigbush.png 288 72
+Texture TexBigCloud ../bin/assets/mario/bigcloud.png 172 86
+Texture TexBigPipe ../bin/assets/mario/bigpipe.png 144 144
+Texture TexBlock ../bin/assets/mario/block.png 64 64
+Texture TexBrick ../bin/assets/mario/brick.png 64 64
+Texture TexBush ../bin/assets/mario/bush.png 360 216
+Texture TexFlag ../bin/assets/mario/flag.png 64 64
+Texture TexFlagPole ../bin/assets/mario/flagpole.png 10 64
+Texture TexFlagTop ../bin/assets/mario/flagtop.png 28 36
+Texture TexGround ../bin/assets/mario/ground.png 64 64
+Texture TexQShade ../bin/assets/mario/qshade.png 130 64
+Texture TexQuestion1 ../bin/assets/mario/question1.png 64 64
+Texture TexQuestion2 ../bin/assets/mario/question2.png 64 64
+Texture TexSmallBush ../bin/assets/mario/smallbush.png 115 58
+Texture TexSmallCloud ../bin/assets/mario/smallcloud.png 115 86
+Texture TexTallPipe ../bin/assets/mario/tallpipe.png 96 189
+Animation Run TexRun 3 10
+Animation Coin TexCoin 8 5
+Animation Explosion TexExplosion 9 5
+Animation QShade TexQShade 2 20
+Animation Stand TexStand 1 1
+Animation Jump TexJump 1 1
+Animation Bullet TexBullet 1 1
+Animation BigBush TexBigBush 1 1
+Animation BigCloud TexBigCloud 1 1
+Animation BigPipe TexBigPipe 1 1
+Animation Block TexBlock 1 1
+Animation Brick TexBrick 1 1
+Animation Bush TexBush 1 1
+Animation Flag TexFlag 1 1
+Animation FlagPole TexFlagPole 1 1
+Animation FlagTop TexFlagTop 1 1
+Animation Ground TexGround 1 1
+Animation Question1 TexQuestion1 1 1
+Animation Question2 TexQuestion2 1 1
+Animation SmallBush TexSmallBush 1 1
+Animation SmallCloud TexSmallCloud 1 1
+Animation TallPipe TexTallPipe 1 1
+Font TechFont ../bin/fonts/tech.ttf
+Font MarioFont ../bin/fonts/super-mario-bros-nes.ttf
+

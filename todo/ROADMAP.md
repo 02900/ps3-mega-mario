@@ -102,29 +102,92 @@ entity creation, rendered with **SFML 2.6**:
 - ⬜ **Exit criteria — menu nav + in-game move/jump on the real game:** verified once the
   game actually runs (Phase 5); the input layer itself is done.
 
-### Phase 5 — Rendering & camera ⬜
-- Sprites, animations, and the **2D scrolling camera** (`sf::View` → `screen = world −
-  camera`, cull off-screen); the tilemap/level draw in `Scene_Play`.
-- **Exit criteria:** a level renders and scrolls with the player.
+### Phase 5 — Rendering & camera ✅
+- ✅ **Game wired in.** `source/main.cpp` is now the original entry
+  (`GameEngine game("../bin/assets.txt"); game.run();`); all PS3 bring-up (tiny3d / ya2d /
+  pad / fonts / XMB callback) moved into `sf::RenderWindow::create()` in
+  `source/sfml_backend.cpp`, and `clear()`/`display()` drive the tiny3d frame (begin / flip).
+- ✅ **Config from memory.** Embedded `assets.txt` + `level1/2/3.txt` via `bin2o`
+  (`data/*_txt.bin`); `GameEngine::init` and `Scene_Play::init` read them through
+  `load_config()` + `std::istringstream` instead of `std::ifstream` (no PS3 filesystem).
+- ✅ **Sub-rect sprite rendering.** `draw(Sprite)` is a textured tiny3d quad honoring the
+  texture **sub-rect** (animation frames / sheet cells), origin, scale (negative `scale.x` =
+  facing flip), the **`sf::View` camera** (`screen = world − camera`), and **nearest-neighbour**
+  filtering (crisp pixel art). World is a virtual **1920×1080** (SFML Y-down) mapped onto
+  tiny3d's fixed **848×512** 2D canvas (`screen = (world − cam) · canvas/window`).
+- ✅ Debug overlays wired (`J` collision AABBs, `F` grid) via the same camera mapping.
+- ✅ Builds green (`src.self` ~907 KB). Boots to `Scene_Menu` (text is stub → blank sky
+  until Phase 7's Clay menu); **press ○ (Circle → Enter) to start Level 1** and see the scene.
+- ✅ **Off-screen culling**: `draw(Sprite)` skips sprites whose screen AABB misses the
+  848×512 canvas (the level is ~210 tiles wide; only ~30 are on-screen).
+- ✅ **Exit criteria — a level renders and scrolls: CONFIRMED on RPCS3.** Full scene
+  (ground, bricks, pipes, `?`-blocks, bushes, hills, clouds, Mega Man) renders stable and
+  scrolls horizontally with the player.
+- ⚠️ **Root-cause fixed — vertical camera flicker.** `Scene_Play::sRender` sets the camera
+  via `height() - getView().getCenter().y`, which feeds the previous frame's center.y back.
+  SFML's window view defaults to *centered* (center = size/2) so `1080-540==540` is a stable
+  fixed point; our `sf::View()` defaulted to center `(0,0)`, making it oscillate `1080<->0`
+  each frame (whole scene jumped ±256px vertically → half the entities culled, alternating).
+  Fixed by initializing the window view to the centered default in `RenderWindow::create()`.
 
-### Phase 6 — Physics & gameplay ⬜
-- Verify the ECS `Physics` (AABB overlap, gravity, jump, tile collisions) and entity
-  factory behave on hardware; tune the fixed timestep.
-- **Exit criteria:** Mario runs, jumps, collides, and interacts with the level.
+### Phase 6 — Physics & gameplay 🚧
+- ⚠️ **Fixed a silent float-truncation bug in collision.** `Physics::GetOverlap` (and the
+  player flip in `Scene_Play`) called `abs()` on **floats**, but no `<cmath>` was included, so
+  it resolved to C's `abs(int)` — truncating the fractional part of every overlap and, in
+  `flip /= abs(flip)`, dividing by zero when `|scale.x| < 1`. The original game got `<cmath>`
+  transitively via SFML headers; our minimal shim doesn't. Fixed with explicit `std::fabs`
+  (`#include <cmath>`). This directly governs AABB precision (landing on tiles, not clipping).
+- Timestep: the game uses fixed per-frame deltas (no dt); `tiny3d_Flip()` caps to vblank
+  (60 fps), matching the original's tuning. No change needed unless it feels off.
+- **Exit criteria:** Mega Man runs, jumps, lands on tiles, breaks bricks, bumps `?`-blocks
+  (→ coin), shoots, and the flag resets the level — verify on RPCS3 / PS3.
 
-### Phase 7 — UI / HUD / menu ⬜
-- `Scene_Menu` and the in-game HUD (score / coins / lives / time) built **entirely in
-  Clay** (`docs/PATTERNS.md` §3.5), not hand-drawn.
-- **Exit criteria:** a working menu → play → (game over / win) → menu loop.
+### Phase 7 — UI / HUD / menu 🚧
+- ✅ **`Scene_Menu` rebuilt in Clay** (not hand-drawn `sf::Text`, per `docs/PATTERNS.md` §3.5).
+  New C TU `source/clay_menu.{c,h}` builds the layout (title + "Select a level" + the 3 level
+  rows, selected one highlighted with a gold border + darker row + controls hint); `Scene_Menu::sRender`
+  calls `clay_render_menu(...)` between `clear()` and `display()`. `clay_backend_init(848,512)`
+  runs once in `platform_init`. Pure-C UI mirrors the sister port so the `CLAY_*` macros compile
+  under `-std=gnu99`; C++ calls it via an `extern "C"` bridge header.
+- ✅ **Menu navigation fixed for the X-only-jump mapping**: D-pad/stick **Up/Down → arrow keys**
+  (`Scene_Menu` now registers `Up`/`Down` instead of `W`/`S`, which freed `W` to be jump-only),
+  **Circle → select**, **Start → exit**.
+- ⬜ This game has **no in-game HUD** (no score/lives/time in `Scene_Play`), so the HUD half of
+  this phase is N/A — the menu is the deliverable.
+- ⬜ **Exit criteria — menu → play → back loop on hardware:** verify on RPCS3 (title + rows
+  render, highlight moves with the D-pad, Circle enters the level, the flag/quit returns).
 
-### Phase 8 — Audio ⬜
-- Music + SFX via **MikMod** (convert the original audio to module/PCM; jump, coin, stomp,
-  level-clear). Defensive init (`docs/PATTERNS.md` §5.5).
-- **Exit criteria:** background music + core SFX.
+### Phase 8 — Audio 🚧
+- ✅ **MikMod audio, fully synthesized in code** (`source/audio.{c,h}`). The original ships no
+  audio, so every sound is generated as 16-bit mono PCM (square/noise + sweep + click-free
+  envelope), wrapped in a **little-endian** WAV (PPU is big-endian — bytes emitted by hand,
+  §5.3) and loaded via an in-memory `MREADER` → `Sample_LoadGeneric` (§5.2). No `libm`
+  (manual phase wrap instead of `fmod`).
+- ✅ **SFX**: jump (rising sweep), coin (B5→E6 two-tone), brick-break (thud + noise), shoot
+  (descending blip), level-clear (C-E-G-C-E arpeggio). **Music**: a looping square-wave melody
+  played as an `SF_LOOP` sample on an `SFX_CRITICAL` voice, ducked under SFX.
+- ✅ **Defensive init** (§5.5): `audio_init()` no-ops on any MikMod failure (`audio_ok` guards
+  every entry point) so bad audio can't hang the console. `audio_update()` runs each frame in
+  `RenderWindow::display()`; events hooked in `Scene_Play` (jump/shoot/coin/brick/flag);
+  `audio_shutdown()` on exit. Makefile already linked `-lmikmod -laudio`.
+- ✅ Builds green (`src.self` ~989 KB).
+- ⬜ **Exit criteria — music + SFX audible on hardware:** verify on RPCS3 / PS3 (and tune
+  volumes / the melody if grating).
 
-### Phase 9 — Packaging & polish ⬜
-- `ICON0.PNG`, `make pkg` for XMB install, performance pass, docs.
-- **Exit criteria:** an installable PKG that runs from the XMB.
+### Phase 9 — Packaging & polish 🚧
+- ✅ **Installable PKG**: `make pkg` (or `./scripts/build.sh pkg`) produces a valid PS3 PKG
+  (`src.pkg`, ~1 MB, magic `\x7fPKG`, `CONTENT_ID = UP0001-MEGAMARIO_00-…`). The `.self` is
+  self-contained (all sprites + level/asset configs embedded via `bin2o`), so the PKG just
+  wraps it as `EBOOT.BIN` + `sfo.xml` + `ICON0.PNG`; `pkgfiles/assets/` is empty by design.
+- ✅ **ICON0.PNG** themed, correct XMB size (**320×176**); `sfo.xml` set (TITLE "Mega Mario",
+  TITLE_ID `MEGAMARIO`). README documents build / `make pkg` / install.
+- ✅ **Performance**: stable 60 fps; off-screen sprite culling + 8 MB tiny3d vertex buffer.
+- ⬜ **Exit criteria — installs + boots from XMB:** verify on RPCS3 (File → Install .pkg →
+  launch from the game list) and ideally on real hardware.
+- ⚠️ **Known issue (separate from packaging):** an intermittent ~1-frame render glitch (a
+  sprite jumps / some tiles vanish for a single frame every few seconds). Not gameplay/camera;
+  looks like RSX vertex/command-buffer reuse. Diagnostic plan parked in
+  `ideas/session-recorder-diagnostic.md`.
 
 ---
 

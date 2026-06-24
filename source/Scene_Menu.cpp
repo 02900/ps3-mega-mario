@@ -1,6 +1,7 @@
 #include "Scene_Menu.h"
 #include "GameEngine.h"
 #include "Scene_Play.h"
+#include "clay_menu.h"  // UI rendered in Clay, not hand-drawn sf::Text (PATTERNS §3.5)
 
 Scene_Menu::Scene_Menu() {}
 
@@ -12,8 +13,8 @@ Scene_Menu::Scene_Menu(GameEngine *gameEngine) {
 void Scene_Menu::init() {
   m_currentFrame = 0;
   registerAction(sf::Keyboard::Escape, "Quit");
-  registerAction(sf::Keyboard::W, "Up");
-  registerAction(sf::Keyboard::S, "Down");
+  registerAction(sf::Keyboard::Up, "Up");
+  registerAction(sf::Keyboard::Down, "Down");
   registerAction(sf::Keyboard::Enter, "Level Selected");
 
   m_title = "MEGA MARIO";
@@ -39,25 +40,15 @@ void Scene_Menu::update() {
 void Scene_Menu::sRender() {
   m_game->window().clear(sf::Color(0, 87, 217));
 
-  m_menuText.setFont(m_game->assets().getFont("MarioFont"));
-
-  m_menuText.setString(m_title);
-  m_menuText.setCharacterSize(60);
-  m_menuText.setPosition(50, 50);
-  m_menuText.setFillColor(sf::Color(255, 255, 255));
-  m_game->window().draw(m_menuText);
-
-  for (size_t i = 0; i < m_menuStrings.size(); i++) {
-    m_menuText.setString(m_menuStrings[i]);
-    m_menuText.setCharacterSize(30);
-    m_menuText.setPosition(50, 100 + 100 * (i + 1));
-    if (i != m_selectedMenuIndex)
-      m_menuText.setFillColor(sf::Color(0, 0, 0));
-    else
-      m_menuText.setFillColor(sf::Color(255, 255, 255));
-
-    m_game->window().draw(m_menuText);
-  }
+  // The menu UI is built natively in Clay (docs/PATTERNS.md §3.5), not drawn with
+  // sf::Text. Hand the menu state to the Clay renderer between clear() and
+  // display() (the clear() set up the tiny3d 2D frame the renderer draws into).
+  const char *items[16];
+  int n = (int)m_menuStrings.size();
+  if (n > 16) n = 16;
+  for (int i = 0; i < n; i++)
+    items[i] = m_menuStrings[i].c_str();
+  clay_render_menu(m_title.c_str(), items, n, (int)m_selectedMenuIndex);
 
   m_game->window().display();
 }

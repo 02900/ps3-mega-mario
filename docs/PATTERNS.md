@@ -324,6 +324,36 @@ the game code compiles nearly unchanged.
 - **2D camera = subtract the view offset at draw time.** A side-scroller's `sf::View`
   becomes `screen = world - camera`; cull sprites outside the screen. No 3D pipeline, no
   z-buffer — just ya2d quads in `tiny3d_Project2D` (painter order = draw order).
+- **⚠️ Map the game's virtual resolution onto tiny3d's fixed 848×512 canvas.**
+  `tiny3d_Project2D()` gives a **fixed 848×512** 2D space whatever the output mode, but the
+  game thinks in its own window size (mega-mario: 1920×1080, SFML Y-down). So the draw
+  transform is two steps: `world → (apply sprite pos/origin/scale, then − camera) → · (848/winW, 512/winH)`.
+  Bake the `canvas/window` factor into the vertex positions; don't fight it by resizing the
+  window. `getSize()` must return the *virtual* size the game positions against (1920×1080),
+  not 848×512, or the camera math (`width()/2` centering, `mapGridToPixels`) drifts.
+- **⚠️ `ya2d_drawTextureEx` is full-image only — sub-rects need a raw tiny3d quad.**
+  Sprite-sheet animation (`setTextureRect`) and texture atlases require partial UVs, which
+  ya2d's helpers don't expose. Emit the quad yourself: `tiny3d_SetTextureWrap(0, t->textureOffset,
+  t->textureWidth, t->textureHeight, t->rowBytes, (text_format)t->format, …, TEXTURE_NEAREST)`
+  then `SetPolygon(TINY3D_QUADS)` + 4 × `VertexPos/Color/Texture`. **Normalize UVs by
+  `textureWidth/Height`** (the allocated, possibly padded VRAM size), *not* `imageWidth`.
+  `ya2d_Texture.format` already holds the tiny3d `text_format` enum (RGBA → `A8R8G8B8`).
+  `TEXTURE_NEAREST` (=0) keeps pixel art crisp; building the corners from the full SFML
+  transform `world = pos + (local − origin)·scale` makes negative `scale.x` (facing flip)
+  fall out for free.
+- **⚠️ Match SFML default-value semantics, or feedback loops oscillate.** A
+  `RenderWindow`'s view defaults to the *centered* default view (center = size/2), not
+  `(0,0)`. Side-scrollers often write the camera as `view.setCenter(x, height() -
+  getView().getCenter().y)` — that's only stable because `height - height/2 == height/2` is a
+  fixed point. If your `sf::View()` default-constructs center `(0,0)`, the term oscillates
+  `height<->0` every frame and the whole scene jumps vertically (looked exactly like a
+  GPU/buffer flicker — half the sprites cull out each frame, alternating). Initialize the
+  window view to `getDefaultView()` in `create()`. Lesson: when a shim feeds its own getters
+  back into setters, the *default* value must match the real framework's.
+- **Cull off-screen sprites at draw time.** A wide level draws far more entities than fit on
+  screen (here ~210 tiles wide, ~30 visible). Compute the sprite's screen AABB and skip if it
+  misses the 848×512 canvas — both a perf win and it keeps the per-frame tiny3d draw count in
+  the range the renderer is proven at.
 - **Tilemaps / level configs** are usually plain `.txt`. Embed them with `bin2o` (name
   them `*.bin`) and parse from memory (`std::istringstream` over the embedded buffer — the
   game's `fin >> token` loops work unchanged), or ship them in the PKG `assets/`.

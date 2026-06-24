@@ -163,15 +163,16 @@ public:
 	bool         m_open = true;
 	unsigned int m_w = 1920, m_h = 1080;
 
-	void create(VideoMode m, const std::string &, unsigned int = Style::Default) { m_w = m.width; m_h = m.height; }
+	// Platform-touching members live in source/sfml_backend.cpp (tiny3d/ya2d):
+	void create(VideoMode m, const std::string &t, unsigned int s = Style::Default);
+	void clear(const Color & = Color());    // begin tiny3d 2D frame
+	void display();                         // flip + XMB callback
 	bool isOpen() const { return m_open; }
 	void close() { m_open = false; }
-	void clear(const Color & = Color()) {}
-	void display() {}
 	void draw(const Sprite &s);             // backend: sfml_backend.cpp (ya2d)
 	void draw(const Text &) {}              // UI -> Clay (Phase 7)
-	void draw(const RectangleShape &) {}    // backend: Phase 5
-	void draw(const Vertex *, std::size_t, PrimitiveType) {}  // backend: Phase 5
+	void draw(const RectangleShape &s);     // backend: debug AABB (Phase 5)
+	void draw(const Vertex *v, std::size_t n, PrimitiveType p);  // backend: debug lines
 	void setView(const View &v) { m_view = v; }
 	const View &getView() const { return m_view; }
 	View getDefaultView() const { return View(Vector2f(m_w / 2.0f, m_h / 2.0f), Vector2f((float)m_w, (float)m_h)); }

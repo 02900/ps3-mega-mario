@@ -3,6 +3,11 @@
 #include <cstring>
 
 extern "C" {
+// Text configs (assets.txt / levelN.txt), embedded as data/*_txt.bin.
+extern const unsigned char assets_txt_bin[]; extern const unsigned int assets_txt_bin_size;
+extern const unsigned char level1_txt_bin[]; extern const unsigned int level1_txt_bin_size;
+extern const unsigned char level2_txt_bin[]; extern const unsigned int level2_txt_bin_size;
+extern const unsigned char level3_txt_bin[]; extern const unsigned int level3_txt_bin_size;
 extern const unsigned char bigbush_png[]; extern const unsigned int bigbush_png_size;
 extern const unsigned char bigcloud_png[]; extern const unsigned int bigcloud_png_size;
 extern const unsigned char bigpipe_png[]; extern const unsigned int bigpipe_png_size;
@@ -61,4 +66,23 @@ bool asset_lookup(const char *path, const unsigned char **buf, unsigned *size) {
     for (const Entry &e : kAssets)
         if (strcmp(e.name, base) == 0) { *buf = e.buf; *size = *e.size; return true; }
     return false;
+}
+
+// Text configs: map a basename ("assets.txt"/"level1.txt") to its embedded blob.
+namespace {
+const Entry kConfigs[] = {
+    { "assets.txt", assets_txt_bin, &assets_txt_bin_size },
+    { "level1.txt", level1_txt_bin, &level1_txt_bin_size },
+    { "level2.txt", level2_txt_bin, &level2_txt_bin_size },
+    { "level3.txt", level3_txt_bin, &level3_txt_bin_size },
+};
+}
+
+std::string load_config(const std::string &path) {
+    const char *base = strrchr(path.c_str(), '/');
+    base = base ? base + 1 : path.c_str();
+    for (const Entry &e : kConfigs)
+        if (strcmp(e.name, base) == 0)
+            return std::string((const char *)e.buf, *e.size);
+    return std::string();
 }
