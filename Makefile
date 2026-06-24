@@ -27,15 +27,16 @@ include $(PSL1GHT)/ppu_rules
 #---------------------------------------------------------------------------------
 # Directories
 #
-# Stage 1 of the raylib backend: the Clay menu (extern/clay-ps3, drawn via Tiny3D)
-# is stubbed in source/clay_stub.c, so the submodule + ttf_render are out of the
-# build. Stage 2 brings the menu back via a raylib Clay renderer.
+# raylib backend: the Clay menu is kept (Clay is layout-only) but rendered with
+# raylib in source/clay_renderer_raylib.c, so extern/clay-ps3 is referenced only
+# for clay.h / clay_renderer.h (headers) — its Tiny3D clay_renderer.c is NOT
+# compiled (extern/clay-ps3 is in INCLUDES but not SOURCES). ttf_render is dropped.
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	source
 DATA		:=	data
-INCLUDES	:=	include
+INCLUDES	:=	include extern/clay-ps3
 PKGFILES	:=	pkgfiles
 
 #---------------------------------------------------------------------------------

@@ -18,6 +18,7 @@
 #include <SFML/Graphics.hpp>
 #include "asset_registry.h"
 #include "audio.h"       // MikMod music + SFX — extern "C" hooks
+#include "clay_menu.h"   // Clay menu (rendered via raylib in clay_renderer_raylib.c)
 
 #include <cstring>
 #include <cstddef>
@@ -35,6 +36,7 @@ void platform_init()
 	// fullscreen surface and renders this logical space onto the panel.
 	InitWindow(1920, 1080, "Mega Mario (PS3, raylib)");
 	SetTargetFPS(60);
+	clay_backend_init(848, 512);   // Clay arena + raylib measure-text (layout space)
 	audio_init();          // music + SFX (defensive; independent of the GPU)
 	g_ready = true;
 }
