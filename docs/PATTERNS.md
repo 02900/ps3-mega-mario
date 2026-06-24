@@ -135,10 +135,18 @@ float vz = v_dot(d, f); if (vz < 0.05f) return 0;        /* behind camera */
 General principle: **when feedback loops are slow/expensive, choose the approach you can
 verify by reading, not by running.**
 
-### 3.3 No z-buffer in 2D mode → painter's algorithm
+### 3.3 2D draw order = paint order (via the depth test), not "no z-buffer"
 
-Draw far-to-near. Sort objects by camera-forward depth (`dot(pos - eye, forward)`),
-draw the larger-depth one first. Fine for a handful of actors.
+For the **3D** scene, draw far-to-near: sort objects by camera-forward depth
+(`dot(pos - eye, forward)`), draw the larger-depth one first. Fine for a handful of actors.
+
+> **2D correction (verified by disassembling `libtiny3d`):** `tiny3d_Project2D` is *not*
+> z-less — it enables the depth test with func **`LEQUAL`**, depth-write **on**, and clears
+> depth to **far**. So overlapping 2D quads compose in **draw order for free** *as long as
+> they all use one constant `z`* (a later draw at the same `z` passes `≤` and overwrites).
+> ⚠️ The trap: don't bias `z` per-sprite to "fix" ordering — a later, *larger* `z` then
+> **fails** `≤` and the sprite vanishes wherever it overlaps an earlier one. Draw
+> back-to-front at a single `z` and let LEQUAL do the rest.
 
 ### 3.4 Clamp the footprint edge, not the centre
 
@@ -167,6 +175,12 @@ Two patterns cover almost any game HUD purely in Clay:
   a bar without disturbing its fill layout.
 
 Text, borders, images and semi-transparent backgrounds all render (alpha blends).
+
+**Build the Clay UI as a C TU even from a C++ game.** The `CLAY(...)` / `CLAY_TEXT_CONFIG(...)`
+macros are C compound-literals — happiest under `-std=gnu99` (the renderer's own language) and
+finicky in C++. Keep each screen's layout in a `.c` file and call it from the C++ game through a
+tiny `extern "C"` bridge (`clay_render_menu(title, items, n, sel)`), passing plain C strings/ints.
+Keep `CLAY_IMPLEMENTATION` in exactly one TU (the renderer).
 
 ⚠️ **`CLAY_IDI(label, i)` / `CLAY_ID(label)` need a string *literal*** — the macro
 stringifies it, so a ternary (`CLAY_IDI(cond ? "A" : "B", 0)`) fails to compile. Use a
@@ -316,14 +330,22 @@ the game code compiles nearly unchanged.
   is not a member of 'std'"). Provide them in a tiny `ps3_compat.h` (snprintf / strtol
   based) and **force-include it everywhere** via `CXXFLAGS += -include ps3_compat.h` — no
   edits to the original source needed.
+- **⚠️ A slim shim won't pull the transitive includes the original leaned on.** The game
+  called `abs()` on **floats**. Upstream, `<cmath>` arrived transitively (via SFML headers)
+  so it bound to the float overload; our lean shim didn't include it, so `abs()` resolved to
+  C's **`abs(int)`** and silently **truncated every float** — it wrecked AABB-overlap
+  collisions and divided by zero in `flip /= abs(flip)`. No compile error; wrong results at
+  runtime. Use `std::fabs` explicitly and `#include <cmath>` wherever the game does float
+  math; never trust unqualified `abs`/`round`/`min`/`max` to resolve as they did upstream.
 - **Build against a stub shim first.** A header-only shim with the ~20 methods the game
   actually calls is enough to get the whole codebase *compiling & linking* (stub bodies),
   before any real rendering exists — a huge, verifiable milestone that de-risks the rest.
   Keep the texture handle an opaque `void*` in the header so it stays pure C++ (no ya2d
   include); the real backend `.cpp` fills it in later.
 - **2D camera = subtract the view offset at draw time.** A side-scroller's `sf::View`
-  becomes `screen = world - camera`; cull sprites outside the screen. No 3D pipeline, no
-  z-buffer — just ya2d quads in `tiny3d_Project2D` (painter order = draw order).
+  becomes `screen = world - camera`; cull sprites outside the screen. No 3D pipeline to set
+  up — ya2d/tiny3d quads in `tiny3d_Project2D`, all drawn at a constant `z` (its depth test is
+  `LEQUAL`, so draw order = paint order; see §3.3).
 - **⚠️ Map the game's virtual resolution onto tiny3d's fixed 848×512 canvas.**
   `tiny3d_Project2D()` gives a **fixed 848×512** 2D space whatever the output mode, but the
   game thinks in its own window size (mega-mario: 1920×1080, SFML Y-down). So the draw
@@ -361,6 +383,12 @@ the game code compiles nearly unchanged.
   filesystem, so map **path basename → bin2o buffer** in a small generated registry and
   have the shim's `loadFromFile` do the lookup → `ya2d_loadPNGfromBuffer`. No edits to the
   game's asset code.
+- **⚠️ Bring the platform up lazily if the game loads assets before the window.** mega-mario
+  loads every texture in its ctor *before* `window.create()` — but on PS3 it's `create()`
+  that inits tiny3d/ya2d, so the first `loadFromFile` decoded a PNG into an uninitialised RSX
+  and crashed on boot. Fix: make platform bring-up **idempotent + lazy** — call it from both
+  `create()` *and* the first `loadFromFile()`, guarded by a `ready` flag — so whichever the
+  game reaches first wins.
 - **⚠️ A C header with non-`extern` globals breaks multi-TU C++ links.** `ya2d_controls.h`
   has `padData ya2d_paddata[7];` (no `extern`): in C that's a tentative def (merges); in
   **C++ it's a real definition**, so two C++ TUs including `<ya2d/ya2d.h>` → "multiple
