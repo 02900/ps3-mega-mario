@@ -84,6 +84,13 @@ void draw_line(float x0, float y0, float x1, float y1,
 	DrawLineV((Vector2){ x0, y0 }, (Vector2){ x1, y1 }, (Color){ r, g, b, a });
 }
 
+void draw_text(const char *s, float x, float y, float size,
+               unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+	DrawTextEx(GetFontDefault(), s, (Vector2){ x, y }, size, size / 10.0f,
+	           (Color){ r, g, b, a });
+}
+
 }  // namespace
 
 namespace sf {
@@ -205,6 +212,24 @@ void RenderWindow::draw(const Vertex *v, std::size_t n, PrimitiveType)
 		const Color &c = v[i].color;
 		draw_line(x0, y0, x1, y1, c.r, c.g, c.b, c.a);
 	}
+}
+
+// sf::Text via raylib's built-in font. Used for the debug grid's per-cell "(x,y)"
+// labels, which live at world positions, so apply the same view camera as sprites.
+void RenderWindow::draw(const Text &t)
+{
+	if (t.m_str.empty())
+		return;
+	const float camX = m_view.m_center.x - m_view.m_size.x * 0.5f;
+	const float camY = m_view.m_center.y - m_view.m_size.y * 0.5f;
+	const float wsx = (float)GetScreenWidth()  / (float)m_w;
+	const float wsy = (float)GetScreenHeight() / (float)m_h;
+
+	float x = (t.m_pos.x - t.m_origin.x - camX) * wsx;
+	float y = (t.m_pos.y - t.m_origin.y - camY) * wsy;
+	float size = (float)t.m_size * wsy;
+
+	draw_text(t.m_str.c_str(), x, y, size, t.m_color.r, t.m_color.g, t.m_color.b, t.m_color.a);
 }
 
 }  // namespace sf

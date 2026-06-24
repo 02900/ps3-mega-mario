@@ -170,7 +170,7 @@ public:
 	bool isOpen() const { return m_open; }
 	void close() { m_open = false; }
 	void draw(const Sprite &s);             // backend: sfml_backend.cpp (ya2d)
-	void draw(const Text &) {}              // UI -> Clay (Phase 7)
+	void draw(const Text &t);               // backend: raylib text (debug grid labels)
 	void draw(const RectangleShape &s);     // backend: debug AABB (Phase 5)
 	void draw(const Vertex *v, std::size_t n, PrimitiveType p);  // backend: debug lines
 	void setView(const View &v) { m_view = v; }
