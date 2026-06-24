@@ -3,8 +3,9 @@
 #
 # PS3 homebrew port of "mega-mario" (a C++/SFML ECS platformer). The original is
 # already C++, so this builds .cpp with ppu-g++; the SFML layer is replaced by a
-# PS3 backend (ya2d / pad / MikMod / Clay). Build with the Docker toolchain:
-#   docker run --rm -v "$PWD":/src -w /src ghcr.io/02900/ps3-toolchain make
+# PS3 backend. Branch `raylib-backend`: that backend draws with raylib (over RSXGL)
+# instead of Tiny3D/ya2d. Build with the raylib toolchain image:
+#   docker run --rm -v "$PWD":/src -w /src ghcr.io/02900/ps3-toolchain-raylib make
 #---------------------------------------------------------------------------------
 .SUFFIXES:
 #---------------------------------------------------------------------------------
@@ -26,32 +27,34 @@ include $(PSL1GHT)/ppu_rules
 #---------------------------------------------------------------------------------
 # Directories
 #
-# extern/clay-ps3 is the Clay UI submodule (git submodule update --init --recursive).
-# Its clay_renderer.c needs the ttf_render helper (vendored in source/ + include/).
+# Stage 1 of the raylib backend: the Clay menu (extern/clay-ps3, drawn via Tiny3D)
+# is stubbed in source/clay_stub.c, so the submodule + ttf_render are out of the
+# build. Stage 2 brings the menu back via a raylib Clay renderer.
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source extern/clay-ps3
+SOURCES		:=	source
 DATA		:=	data
-INCLUDES	:=	include extern/clay-ps3
+INCLUDES	:=	include
 PKGFILES	:=	pkgfiles
 
 #---------------------------------------------------------------------------------
-# Libraries to link (2D sprites, fonts, audio, image decode, net, UI)
+# Libraries to link: raylib over the RSXGL stack (sprites/window/input), plus
+# MikMod (audio, independent of the GPU). RSXGL underneath is C++, so the link uses
+# the C++ driver (LD is already $(CXX) since there are .cpp files).
 #---------------------------------------------------------------------------------
-LIBS		:=	-lya2d -lfont3d -ltiny3d -lsimdmath \
-			-lgcm_sys -lrsx -lio -lsysutil -lrt -llv2 \
-			-lpngdec -ljpgdec -lsysmodule -lm -lsysfs \
-			-lnet -lfreetype -lz -lmikmod -laudio \
-			-lmini18n -lnetctl
+LIBS		:=	-lraylib -lEGL -lGL \
+			-lrsx -lgcm_sys -lio -lsysutil -lsysmodule \
+			-lnet -lrt -llv2 -lpng -lz -lm \
+			-lmikmod -laudio
 
 #---------------------------------------------------------------------------------
 # Compiler flags. C uses gnu99; C++ uses gnu++17 (ppu gcc 7.2 has no C++20, so the
 # original C++20 source is built at C++17 — see todo/ROADMAP.md).
 #---------------------------------------------------------------------------------
-CFLAGS		=	-O2 -Wall -mcpu=cell -std=gnu99 $(MACHDEP) $(INCLUDE)
+CFLAGS		=	-O2 -Wall -mcpu=cell -std=gnu99 -D__RSX__ $(MACHDEP) $(INCLUDE)
 # -include ps3_compat.h: provide std::to_string / stoi / stof (missing on newlib).
-CXXFLAGS	=	-O2 -Wall -mcpu=cell -std=gnu++17 -fno-exceptions -fno-rtti -include ps3_compat.h $(MACHDEP) $(INCLUDE)
+CXXFLAGS	=	-O2 -Wall -mcpu=cell -std=gnu++17 -D__RSX__ -fno-exceptions -fno-rtti -include ps3_compat.h $(MACHDEP) $(INCLUDE)
 LDFLAGS		=	$(MACHDEP) -Wl,-Map,$(notdir $@).map
 
 #---------------------------------------------------------------------------------

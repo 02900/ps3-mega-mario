@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [main]
+    branches: [main, raylib-backend]
   pull_request:
     branches: [main]
 
@@ -10,9 +10,10 @@ jobs:
   build:
     name: Build Mega Mario
     runs-on: ubuntu-latest
-    # The public toolchain image provides the cross compiler + PSL1GHT + libraries.
+    # raylib backend (this branch): the raylib toolchain variant provides raylib
+    # over RSXGL. (main still uses the base ghcr.io/02900/ps3-toolchain image.)
     container:
-      image: ghcr.io/02900/ps3-toolchain:latest
+      image: ghcr.io/02900/ps3-toolchain-raylib:latest
     steps:
       - uses: actions/checkout@v4
         with:
