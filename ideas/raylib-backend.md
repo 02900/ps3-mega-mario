@@ -54,3 +54,35 @@ Drop/replace: Tiny3D, ya2d, ttf_render, font3d.
   & run). Pad mapping order/!directions to verify on hardware (see memory
   `project_raylib-ps3-variant`, `psl1ght-input` skill). DrawTexturePro flip sign and
   the Y-down/world→screen mapping need an on-hardware check.
+
+## Status: COMPLETE (verified on RPCS3)
+
+All three stages done and verified: gameplay (sprites/camera/scroll), input (raylib
+gamepad), audio (MikMod), the Clay menu (Clay layout + a raylib Clay renderer,
+`clay_renderer_raylib.c`), and `sf::Text`. Runs at 60 FPS. `sf::Text` flip/Y-down all
+correct on hardware.
+
+### Known limitation — RSXGL text-batch corruption (debug grid only)
+
+The **F** debug grid (per-cell "(x,y)" coordinate labels) is the one rough spot, and it
+exposed a real RSXGL/rlgl limitation worth recording:
+
+- **Big single-texture text draw corrupts.** rlgl merges consecutive text (all sharing
+  the font atlas) into one large `glDrawElements`; RSXGL corrupts it → stray glyph
+  vertices as white diagonal streaks. Sprites/tiles don't corrupt because each has its
+  own texture → small per-object draw calls. Fix: `rlDrawRenderBatchActive()` after each
+  text string (`draw_text`, Clay TEXT) so each text is its own tiny clean draw.
+- **Per-flush VBO reuse flickers.** Each flush cycles the rlgl batch VBO, so more
+  flushes/frame than the buffer count makes the RSX reuse a VBO mid-frame while still
+  reading it → flicker. Mitigated by building the raylib image with many batch buffers
+  (`RL_DEFAULT_BATCH_BUFFERS=48`, see `ps3-toolchain` `Dockerfile.raylib`) and thinning
+  the grid to label every 4th cell (`LABEL_STRIDE` in `Scene_Play.cpp`) so flush count
+  stays under the buffer count.
+- **No GPU sync to fully close it.** RSXGL exports **no** `glFinish`/`glFlush`/fence/
+  `eglWaitGL`, so a frame can be presented before all ~40 per-label draws finish → a few
+  sprites flicker with the grid on. Unfixable without patching RSXGL's core. **Accepted**
+  as a known limitation: it only affects the developer grid overlay; actual gameplay and
+  the menu are clean at 60 FPS.
+
+Tuning levers if revisited: more batch buffers (image) to allow denser labels, a coarser
+`LABEL_STRIDE`, or a lines-only grid (no text = no flush issue).
