@@ -12,11 +12,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       # Offline: validates relative links between README / ROADMAP / docs.
       # External URLs are not requested, so the job is deterministic.
       - name: Check Markdown links
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --offline --no-progress "**/*.md"
+          args: --offline --no-progress --exclude-path .claude --exclude-path extern "**/*.md"
           fail: true
