@@ -40,6 +40,9 @@ extern "C" int usleep(unsigned long microseconds);
 #include "gl2d.h"         // shared 2D helpers (this TU implements them)
 #include "font8x8.h"      // built-in 8x8 bitmap ASCII font
 
+// Identifies this backend in the benchmark's output file (Scene_Benchmark.cpp).
+const char *BACKEND_NAME = "rsxgl";
+
 // ---- GL state -----------------------------------------------------------
 namespace {
 

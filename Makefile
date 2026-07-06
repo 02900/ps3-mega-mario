@@ -46,7 +46,7 @@ PKGFILES	:=	pkgfiles
 #---------------------------------------------------------------------------------
 LIBS		:=	-lEGL -lGL \
 			-lrsx -lgcm_sys -lio -lsysutil -lsysmodule \
-			-lnet -lrt -llv2 -lpng -lz -lm \
+			-lnet -lrt -llv2 -lsysfs -lpng -lz -lm \
 			-lmikmod -laudio
 
 #---------------------------------------------------------------------------------
