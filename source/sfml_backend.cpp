@@ -181,44 +181,66 @@ void build_font_atlas()
 }
 
 // --- quad batching ---------------------------------------------------------
-// One glBufferData+glDrawArrays per quad is far too many small GPU uploads
-// (hundreds of tiles + the debug grid's ~500 line-quads -> ~20fps). Instead
-// accumulate quads into a CPU buffer and flush (upload+draw) only when the
-// texture changes, the buffer fills, or the frame ends. Flushing on EVERY
-// texture change preserves painter's draw order exactly; only consecutive
-// same-texture quads coalesce (grid lines and white rects -> ~1 draw).
-const int BATCH_MAX_VERTS = 8192;   // ~1365 quads/flush; 256 KB CPU buffer
-float  g_batch[BATCH_MAX_VERTS * 8];
-int    g_batch_n = 0;               // vertices buffered
-GLuint g_batch_tex = 0;
+// The naive "glBufferData + glDrawArrays per texture change" costs one buffer
+// REALLOCATION per draw run — ~65us each on RSXGL — so a multi-texture scene of N
+// sprites pays N reallocations/frame (the benchmark measured rsxgl ~15x slower than
+// raylib/tiny3d here). Instead accumulate the WHOLE frame's geometry into one CPU
+// buffer, recording "runs" (a texture + a vertex range), upload it ONCE per frame
+// (a single orphaning glBufferData, no stall), then issue one glDrawArrays per run.
+// Cost drops to 1 upload + N cheap draws/frame. Painter's order is preserved (runs
+// are emitted in submission order); a run also breaks on demand (text) so a big
+// merged font-atlas draw — the RSXGL glyph corruption — never forms.
+const int BATCH_MAX_VERTS = 65536;   // ~10922 quads/frame; 2 MB CPU buffer
+const int BATCH_MAX_RUNS  = 16384;   // worst case: one run per quad (multi-texture)
+float  g_verts[BATCH_MAX_VERTS * 8];
+int    g_vcount = 0;                 // vertices accumulated this frame
+struct DrawRun { GLuint tex; int start; int count; };
+DrawRun g_runs[BATCH_MAX_RUNS];
+int    g_run_count = 0;
+bool   g_force_break = false;        // start a new run on the next quad (text boundary)
 
-void batch_flush()
+// Upload the frame's geometry once and draw every run. Called at display() (and as a
+// mid-frame fallback if the CPU buffer fills). One glBufferData => orphan => no stall.
+void frame_flush()
 {
-	if (g_batch_n == 0) return;
-	glBindTexture(GL_TEXTURE_2D, g_batch_tex);
+	if (g_vcount == 0) { g_run_count = 0; g_force_break = false; return; }
 	glBindVertexArray(g_vao);
 	glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
-	glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)g_batch_n * 8 * sizeof(float), g_batch, GL_STREAM_DRAW);
-	glDrawArrays(GL_TRIANGLES, 0, g_batch_n);
-	g_batch_n = 0;
+	glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)g_vcount * 8 * sizeof(float), g_verts, GL_STREAM_DRAW);
+	for (int i = 0; i < g_run_count; i++) {
+		glBindTexture(GL_TEXTURE_2D, g_runs[i].tex);
+		glDrawArrays(GL_TRIANGLES, g_runs[i].start, g_runs[i].count);
+	}
+	g_vcount = 0;
+	g_run_count = 0;
+	g_force_break = false;
 }
 
-// Append one textured quad (screen px, uv 0..1) to the batch.
+// Append one textured quad (screen px, uv 0..1) to the current frame's buffer.
 void gl_quad(GLuint tex, float x, float y, float w, float h,
              float u0, float v0, float u1, float v1,
              float cr, float cg, float cb, float ca)
 {
-	if (tex != g_batch_tex || g_batch_n + 6 > BATCH_MAX_VERTS) {
-		batch_flush();
-		g_batch_tex = tex;
+	if (g_vcount + 6 > BATCH_MAX_VERTS || g_run_count >= BATCH_MAX_RUNS)
+		frame_flush();   // buffer full mid-frame: draw what we have, keep going
+
+	// New run on texture change or a forced break (else extend the current run).
+	if (g_run_count == 0 || g_runs[g_run_count - 1].tex != tex || g_force_break) {
+		g_runs[g_run_count].tex   = tex;
+		g_runs[g_run_count].start = g_vcount;
+		g_runs[g_run_count].count = 0;
+		g_run_count++;
+		g_force_break = false;
 	}
+
 	float x1 = x + w, y1 = y + h;
 	const float v[6 * 8] = {
 		x,  y,  u0, v0, cr, cg, cb, ca,   x1, y,  u1, v0, cr, cg, cb, ca,   x1, y1, u1, v1, cr, cg, cb, ca,
 		x,  y,  u0, v0, cr, cg, cb, ca,   x1, y1, u1, v1, cr, cg, cb, ca,   x,  y1, u0, v1, cr, cg, cb, ca,
 	};
-	memcpy(&g_batch[g_batch_n * 8], v, sizeof(v));
-	g_batch_n += 6;
+	memcpy(&g_verts[g_vcount * 8], v, sizeof(v));
+	g_vcount += 6;
+	g_runs[g_run_count - 1].count += 6;
 }
 
 void sys_callback(u64 status, u64 /*param*/, void * /*userdata*/)
@@ -324,9 +346,10 @@ void gl2d_text(const char *s, float x, float y, float size,
 		}
 		cx += size;   // monospace advance
 	}
-	// Flush per string so text stays in small font-atlas draws — a big merged
-	// glyph batch is exactly what corrupts on RSXGL (the raylib backend's bug).
-	batch_flush();
+	// End this string's run so the next text starts a separate draw call — a big
+	// merged font-atlas glDrawElements is exactly what corrupts glyphs on RSXGL.
+	// Just a run boundary now (no upload): the frame is still uploaded once.
+	g_force_break = true;
 }
 
 float gl2d_text_width(const char *s, int n, float size)
@@ -378,7 +401,7 @@ void RenderWindow::clear(const Color &c)
 
 void RenderWindow::display()
 {
-	batch_flush();   // draw whatever is still buffered before presenting
+	frame_flush();   // upload the frame's geometry once, then draw all runs
 	eglSwapBuffers(g_dpy, g_surf);
 	audio_update();
 	sysUtilCheckCallback();
