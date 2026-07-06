@@ -70,7 +70,10 @@ const char *FS =
   "varying vec2 v_uv;\n"
   "varying vec4 v_col;\n"
   "uniform sampler2D tex;\n"
-  "void main(void) { gl_FragColor = texture2D(tex, v_uv) * v_col; }\n";
+  // RSXGL stores the RGBA bytes we upload but samples them as big-endian ARGB, so
+  // channels come back rotated (orange -> magenta). .argb rotates them back. White
+  // (font atlas, 1x1 white) is unaffected.
+  "void main(void) { gl_FragColor = texture2D(tex, v_uv).argb * v_col; }\n";
 
 void mat_ortho(float *m, float l, float r, float b, float t, float n, float f)
 {
@@ -167,21 +170,45 @@ void build_font_atlas()
 	free(px);
 }
 
-// Upload+draw one textured quad (screen px, uv 0..1). The heart of the renderer.
+// --- quad batching ---------------------------------------------------------
+// One glBufferData+glDrawArrays per quad is far too many small GPU uploads
+// (hundreds of tiles + the debug grid's ~500 line-quads -> ~20fps). Instead
+// accumulate quads into a CPU buffer and flush (upload+draw) only when the
+// texture changes, the buffer fills, or the frame ends. Flushing on EVERY
+// texture change preserves painter's draw order exactly; only consecutive
+// same-texture quads coalesce (grid lines and white rects -> ~1 draw).
+const int BATCH_MAX_VERTS = 8192;   // ~1365 quads/flush; 256 KB CPU buffer
+float  g_batch[BATCH_MAX_VERTS * 8];
+int    g_batch_n = 0;               // vertices buffered
+GLuint g_batch_tex = 0;
+
+void batch_flush()
+{
+	if (g_batch_n == 0) return;
+	glBindTexture(GL_TEXTURE_2D, g_batch_tex);
+	glBindVertexArray(g_vao);
+	glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
+	glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr)g_batch_n * 8 * sizeof(float), g_batch, GL_STREAM_DRAW);
+	glDrawArrays(GL_TRIANGLES, 0, g_batch_n);
+	g_batch_n = 0;
+}
+
+// Append one textured quad (screen px, uv 0..1) to the batch.
 void gl_quad(GLuint tex, float x, float y, float w, float h,
              float u0, float v0, float u1, float v1,
              float cr, float cg, float cb, float ca)
 {
+	if (tex != g_batch_tex || g_batch_n + 6 > BATCH_MAX_VERTS) {
+		batch_flush();
+		g_batch_tex = tex;
+	}
 	float x1 = x + w, y1 = y + h;
 	const float v[6 * 8] = {
 		x,  y,  u0, v0, cr, cg, cb, ca,   x1, y,  u1, v0, cr, cg, cb, ca,   x1, y1, u1, v1, cr, cg, cb, ca,
 		x,  y,  u0, v0, cr, cg, cb, ca,   x1, y1, u1, v1, cr, cg, cb, ca,   x,  y1, u0, v1, cr, cg, cb, ca,
 	};
-	glBindTexture(GL_TEXTURE_2D, tex);
-	glBindVertexArray(g_vao);
-	glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(v), v, GL_STREAM_DRAW);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
+	memcpy(&g_batch[g_batch_n * 8], v, sizeof(v));
+	g_batch_n += 6;
 }
 
 void sys_callback(u64 status, u64 /*param*/, void * /*userdata*/)
@@ -287,6 +314,9 @@ void gl2d_text(const char *s, float x, float y, float size,
 		}
 		cx += size;   // monospace advance
 	}
+	// Flush per string so text stays in small font-atlas draws — a big merged
+	// glyph batch is exactly what corrupts on RSXGL (the raylib backend's bug).
+	batch_flush();
 }
 
 float gl2d_text_width(const char *s, int n, float size)
@@ -338,6 +368,7 @@ void RenderWindow::clear(const Color &c)
 
 void RenderWindow::display()
 {
+	batch_flush();   // draw whatever is still buffered before presenting
 	eglSwapBuffers(g_dpy, g_surf);
 	audio_update();
 	sysUtilCheckCallback();
