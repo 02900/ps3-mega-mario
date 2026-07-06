@@ -190,8 +190,8 @@ void build_font_atlas()
 // Cost drops to 1 upload + N cheap draws/frame. Painter's order is preserved (runs
 // are emitted in submission order); a run also breaks on demand (text) so a big
 // merged font-atlas draw — the RSXGL glyph corruption — never forms.
-const int BATCH_MAX_VERTS = 65536;   // ~10922 quads/frame; 2 MB CPU buffer
-const int BATCH_MAX_RUNS  = 16384;   // worst case: one run per quad (multi-texture)
+const int BATCH_MAX_VERTS = 131072;  // ~21845 quads/frame; 4 MB CPU buffer (fits the 16k-sprite benchmark stage in one upload)
+const int BATCH_MAX_RUNS  = 32768;   // worst case: one run per quad (multi-texture)
 float  g_verts[BATCH_MAX_VERTS * 8];
 int    g_vcount = 0;                 // vertices accumulated this frame
 struct DrawRun { GLuint tex; int start; int count; };

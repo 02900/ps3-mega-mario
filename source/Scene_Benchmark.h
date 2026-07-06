@@ -12,7 +12,7 @@
 // separate in the heavy, render-bound stages. See ideas/benchmark.md.
 class Scene_Benchmark : public Scene {
   static const int NUM_STAGES = 5;
-  int  m_target[NUM_STAGES] = {250, 500, 1000, 2000, 4000};  // live sprites per stage
+  int  m_target[NUM_STAGES] = {1000, 2000, 4000, 8000, 16000};  // live sprites per stage
   int  m_stage = 0;
   int  m_stageFrame = 0;
   static const int STAGE_FRAMES = 150;   // frames per stage (fixed, not wall-time)
