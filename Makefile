@@ -3,9 +3,9 @@
 #
 # PS3 homebrew port of "mega-mario" (a C++/SFML ECS platformer). The original is
 # already C++, so this builds .cpp with ppu-g++; the SFML layer is replaced by a
-# PS3 backend. Branch `raylib-backend`: that backend draws with raylib (over RSXGL)
-# instead of Tiny3D/ya2d. Build with the raylib toolchain image:
-#   docker run --rm -v "$PWD":/src -w /src ghcr.io/02900/ps3-toolchain-raylib make
+# PS3 backend. Branch `rsxgl-backend`: that backend draws in raw RSXGL/OpenGL (a
+# small 2D-ortho renderer), no raylib/Tiny3D. Build with the RSXGL toolchain image:
+#   docker run --rm -v "$PWD":/src -w /src ghcr.io/02900/ps3-toolchain-rsxgl make
 #---------------------------------------------------------------------------------
 .SUFFIXES:
 #---------------------------------------------------------------------------------
@@ -27,10 +27,10 @@ include $(PSL1GHT)/ppu_rules
 #---------------------------------------------------------------------------------
 # Directories
 #
-# raylib backend: the Clay menu is kept (Clay is layout-only) but rendered with
-# raylib in source/clay_renderer_raylib.c, so extern/clay-ps3 is referenced only
-# for clay.h / clay_renderer.h (headers) — its Tiny3D clay_renderer.c is NOT
-# compiled (extern/clay-ps3 is in INCLUDES but not SOURCES). ttf_render is dropped.
+# rsxgl backend: the Clay menu is kept (Clay is layout-only) but rendered in raw
+# GL in source/clay_renderer_raylib.c (via the gl2d helpers), so extern/clay-ps3 is
+# referenced only for clay.h / clay_renderer.h (headers) — its Tiny3D
+# clay_renderer.c is NOT compiled (extern/clay-ps3 is in INCLUDES but not SOURCES).
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
@@ -40,11 +40,11 @@ INCLUDES	:=	include extern/clay-ps3
 PKGFILES	:=	pkgfiles
 
 #---------------------------------------------------------------------------------
-# Libraries to link: raylib over the RSXGL stack (sprites/window/input), plus
-# MikMod (audio, independent of the GPU). RSXGL underneath is C++, so the link uses
-# the C++ driver (LD is already $(CXX) since there are .cpp files).
+# Libraries to link: RSXGL (EGL/GL) for the 2D renderer, libpng/zlib for texture
+# decode, plus MikMod (audio). RSXGL is C++, so the link uses the C++ driver (LD is
+# already $(CXX) since there are .cpp files).
 #---------------------------------------------------------------------------------
-LIBS		:=	-lraylib -lEGL -lGL \
+LIBS		:=	-lEGL -lGL \
 			-lrsx -lgcm_sys -lio -lsysutil -lsysmodule \
 			-lnet -lrt -llv2 -lpng -lz -lm \
 			-lmikmod -laudio

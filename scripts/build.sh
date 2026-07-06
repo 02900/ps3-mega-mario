@@ -10,14 +10,14 @@
 #
 # Env:
 #   PS3_TOOLCHAIN_IMAGE   Docker image to use
-#                         (default: ghcr.io/02900/ps3-toolchain-raylib:latest)
+#                         (default: ghcr.io/02900/ps3-toolchain-rsxgl:latest)
 #   PS3_NO_PULL=1         Skip the `docker pull` freshness check (use cached image)
 #
 # Note: on Apple Silicon add `--platform linux/amd64` to the docker run below.
 #
 set -euo pipefail
 
-IMAGE="${PS3_TOOLCHAIN_IMAGE:-ghcr.io/02900/ps3-toolchain-raylib:latest}"
+IMAGE="${PS3_TOOLCHAIN_IMAGE:-ghcr.io/02900/ps3-toolchain-rsxgl:latest}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Pull the toolchain image first so image-side updates actually land — `docker run`
