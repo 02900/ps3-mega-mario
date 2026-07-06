@@ -28,6 +28,7 @@
 #include <cstring>
 #include <cstdlib>
 #include <cstddef>
+#include <cstdint>
 #include <csetjmp>
 #include <sys/time.h>
 extern "C" int usleep(unsigned long microseconds);
@@ -47,12 +48,11 @@ EGLSurface g_surf = 0;
 EGLContext g_ctx = 0;
 int   g_w = 1280, g_h = 720;        // real framebuffer size
 GLuint g_prog = 0;
-GLint  g_uProj = -1, g_uTex = -1, g_uSwzMat = -1;
+GLint  g_uProj = -1, g_uTex = -1;
 GLuint g_vao = 0, g_vbo = 0;
 GLuint g_white = 0, g_font = 0;
 bool  g_ready = false;
 bool  g_exit = false;
-int   g_swz = 0;   // DEBUG: texture channel-swizzle mode, cycled with SELECT
 
 struct GLTex { GLuint id; int w, h; };
 
@@ -66,35 +66,12 @@ const char *VS =
   "varying vec4 v_col;\n"
   "void main(void) { gl_Position = Proj * vec4(position, 0.0, 1.0); v_uv = texcoord; v_col = color; }\n";
 
-// DEBUG: RSXGL samples our uploaded RGBA bytes in some rotated channel order.
-// A channel-permutation matrix (set from the CPU, cycled with SELECT) reorders
-// the sampled colour — no int uniform / no fragment-shader branching, which RSXGL's
-// Cg compiler mishandles. Collapses to a single fixed swizzle once known.
 const char *FS =
   "#version 130\n"
   "varying vec2 v_uv;\n"
   "varying vec4 v_col;\n"
   "uniform sampler2D tex;\n"
-  "uniform mat4 uSwzMat;\n"
-  "void main(void) { gl_FragColor = (uSwzMat * texture2D(tex, v_uv)) * v_col; }\n";
-
-// Per-mode channel permutation: source index feeding output (r,g,b,a).
-// 0 RGBA 1 BGRA 2 ARGB 3 ABGR 4 GBAR 5 GRBA 6 RAGB 7 BAGR
-const int SWZ_PERM[8][4] = {
-	{0,1,2,3}, {2,1,0,3}, {3,0,1,2}, {3,2,1,0},
-	{1,2,3,0}, {1,0,2,3}, {0,3,1,2}, {2,3,1,0}
-};
-
-// Upload the permutation matrix for the current g_swz mode (column-major:
-// element (row i, col j) is m[j*4+i]; output_i = sampled[perm_i]).
-void set_swz_uniform()
-{
-	float m[16];
-	memset(m, 0, sizeof m);
-	const int *p = SWZ_PERM[g_swz & 7];
-	for (int i = 0; i < 4; i++) m[p[i] * 4 + i] = 1.0f;
-	glUniformMatrix4fv(g_uSwzMat, 1, GL_FALSE, m);
-}
+  "void main(void) { gl_FragColor = texture2D(tex, v_uv) * v_col; }\n";
 
 void mat_ortho(float *m, float l, float r, float b, float t, float n, float f)
 {
@@ -167,6 +144,15 @@ unsigned char *decode_png(const unsigned char *buf, unsigned size, int *w, int *
 	png_read_image(png, rows);
 	free(rows);
 	png_destroy_read_struct(&png, &info, NULL);
+
+	// RSXGL's texture upload has a channel/endianness quirk: the RGBA bytes we
+	// hand it come back rotated when sampled (orange -> magenta). raylib-ps3 hits
+	// the same "buggy PS3 opengl driver" and fixes it by byte-swapping each pixel
+	// (rtextures.c LoadTextureFromImage). Do the same: [R,G,B,A] -> [A,B,G,R].
+	uint32_t *px = (uint32_t *)out;
+	for (size_t i = 0, n = (size_t)bw * bh; i < n; i++)
+		px[i] = __builtin_bswap32(px[i]);
+
 	*w = bw; *h = bh;
 	return out;
 }
@@ -270,9 +256,7 @@ void platform_init()
 	glUseProgram(g_prog);
 	g_uProj = glGetUniformLocation(g_prog, "Proj");
 	g_uTex = glGetUniformLocation(g_prog, "tex");
-	g_uSwzMat = glGetUniformLocation(g_prog, "uSwzMat");
 	glUniform1i(g_uTex, 0);
-	set_swz_uniform();
 	float proj[16];
 	mat_ortho(proj, 0.0f, (float)g_w, (float)g_h, 0.0f, -1.0f, 1.0f);
 	glUniformMatrix4fv(g_uProj, 1, GL_FALSE, proj);
@@ -387,16 +371,10 @@ void RenderWindow::clear(const Color &c)
 	glClearColor(c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(g_prog);
-	set_swz_uniform();   // DEBUG: current channel-swizzle mode
 }
 
 void RenderWindow::display()
 {
-	// DEBUG: show the active swizzle mode ("SWZ N") so we can read off which one
-	// renders correct colours while cycling with SELECT.
-	char lbl[8] = { 'S', 'W', 'Z', ' ', (char)('0' + g_swz), 0, 0, 0 };
-	gl2d_text(lbl, 12, 12, 28, 255, 255, 0, 255);
-
 	batch_flush();   // draw whatever is still buffered before presenting
 	eglSwapBuffers(g_dpy, g_surf);
 	audio_update();
@@ -548,12 +526,6 @@ void build_pad_events()
 	if (!g_prev_valid) return;
 
 	padData &p = g_prev;
-
-	// DEBUG: SELECT cycles the texture channel-swizzle mode (0..7).
-	static bool s_sel_held = false;
-	if (p.BTN_SELECT && !s_sel_held) g_swz = (g_swz + 1) % 8;
-	s_sel_held = p.BTN_SELECT;
-
 	int sx = 0, sy = 0;
 	if (!(p.ANA_L_H == 0 && p.ANA_L_V == 0)) { sx = axis_dir(p.ANA_L_H); sy = axis_dir(p.ANA_L_V); }
 
