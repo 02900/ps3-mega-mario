@@ -47,11 +47,12 @@ EGLSurface g_surf = 0;
 EGLContext g_ctx = 0;
 int   g_w = 1280, g_h = 720;        // real framebuffer size
 GLuint g_prog = 0;
-GLint  g_uProj = -1, g_uTex = -1;
+GLint  g_uProj = -1, g_uTex = -1, g_uSwz = -1;
 GLuint g_vao = 0, g_vbo = 0;
 GLuint g_white = 0, g_font = 0;
 bool  g_ready = false;
 bool  g_exit = false;
+int   g_swz = 0;   // DEBUG: texture channel-swizzle mode, cycled with SELECT
 
 struct GLTex { GLuint id; int w, h; };
 
@@ -65,15 +66,28 @@ const char *VS =
   "varying vec4 v_col;\n"
   "void main(void) { gl_Position = Proj * vec4(position, 0.0, 1.0); v_uv = texcoord; v_col = color; }\n";
 
+// DEBUG: RSXGL samples our uploaded RGBA bytes in some rotated channel order.
+// uSwz picks a permutation at runtime (cycled with SELECT) so we can find the
+// right one on hardware without reflashing per guess. Once known, this collapses
+// to a single fixed swizzle.
 const char *FS =
   "#version 130\n"
   "varying vec2 v_uv;\n"
   "varying vec4 v_col;\n"
   "uniform sampler2D tex;\n"
-  // RSXGL stores the RGBA bytes we upload but samples them as big-endian ARGB, so
-  // channels come back rotated (orange -> magenta). .argb rotates them back. White
-  // (font atlas, 1x1 white) is unaffected.
-  "void main(void) { gl_FragColor = texture2D(tex, v_uv).argb * v_col; }\n";
+  "uniform int uSwz;\n"
+  "void main(void) {\n"
+  "  vec4 t = texture2D(tex, v_uv);\n"
+  "  vec4 c = t;\n"
+  "  if      (uSwz == 1) c = t.bgra;\n"
+  "  else if (uSwz == 2) c = t.argb;\n"
+  "  else if (uSwz == 3) c = t.abgr;\n"
+  "  else if (uSwz == 4) c = t.gbar;\n"
+  "  else if (uSwz == 5) c = t.grba;\n"
+  "  else if (uSwz == 6) c = t.ragb;\n"
+  "  else if (uSwz == 7) c = t.bagr;\n"
+  "  gl_FragColor = c * v_col;\n"
+  "}\n";
 
 void mat_ortho(float *m, float l, float r, float b, float t, float n, float f)
 {
@@ -249,7 +263,9 @@ void platform_init()
 	glUseProgram(g_prog);
 	g_uProj = glGetUniformLocation(g_prog, "Proj");
 	g_uTex = glGetUniformLocation(g_prog, "tex");
+	g_uSwz = glGetUniformLocation(g_prog, "uSwz");
 	glUniform1i(g_uTex, 0);
+	glUniform1i(g_uSwz, g_swz);
 	float proj[16];
 	mat_ortho(proj, 0.0f, (float)g_w, (float)g_h, 0.0f, -1.0f, 1.0f);
 	glUniformMatrix4fv(g_uProj, 1, GL_FALSE, proj);
@@ -364,10 +380,16 @@ void RenderWindow::clear(const Color &c)
 	glClearColor(c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(g_prog);
+	glUniform1i(g_uSwz, g_swz);   // DEBUG: current channel-swizzle mode
 }
 
 void RenderWindow::display()
 {
+	// DEBUG: show the active swizzle mode ("SWZ N") so we can read off which one
+	// renders correct colours while cycling with SELECT.
+	char lbl[8] = { 'S', 'W', 'Z', ' ', (char)('0' + g_swz), 0, 0, 0 };
+	gl2d_text(lbl, 12, 12, 28, 255, 255, 0, 255);
+
 	batch_flush();   // draw whatever is still buffered before presenting
 	eglSwapBuffers(g_dpy, g_surf);
 	audio_update();
@@ -519,6 +541,12 @@ void build_pad_events()
 	if (!g_prev_valid) return;
 
 	padData &p = g_prev;
+
+	// DEBUG: SELECT cycles the texture channel-swizzle mode (0..7).
+	static bool s_sel_held = false;
+	if (p.BTN_SELECT && !s_sel_held) g_swz = (g_swz + 1) % 8;
+	s_sel_held = p.BTN_SELECT;
+
 	int sx = 0, sy = 0;
 	if (!(p.ANA_L_H == 0 && p.ANA_L_V == 0)) { sx = axis_dir(p.ANA_L_H); sy = axis_dir(p.ANA_L_V); }
 
