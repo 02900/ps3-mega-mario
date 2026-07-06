@@ -54,7 +54,7 @@ For each branch:
 git checkout <main|raylib-backend|rsxgl-backend>
 DOCKER_DEFAULT_PLATFORM=linux/amd64 ./scripts/build.sh
 /Applications/RPCS3.app/Contents/MacOS/rpcs3 src.self
-# In game: menu -> BENCHMARK -> let all 5 stages complete (progress bar fills green).
+# In game: menu -> BENCHMARK -> let all 6 stages complete (progress bar fills green).
 ```
 
 Then compare the three CSVs:
@@ -65,8 +65,42 @@ python3 scripts/bench-compare.py
 # prints an avg-FPS-per-stage table + ratios, writes bench-comparison.csv
 ```
 
+## Results (RPCS3, 6-stage ramp)
+
+Average FPS per stage, higher = better. **Bold** = fastest at that load. Measured under
+RPCS3 (an emulator, not a real PS3) — a *relative* comparison of the render paths.
+
+| sprites | tiny3d | raylib | rsxgl (optimized) |
+|--------:|-------:|-------:|------------------:|
+|   1000  | **60.0** | 59.1 | 57.5 |
+|   2000  | **60.0** | 59.1 | 57.7 |
+|   4000  | 59.1 | **60.0** | 57.6 |
+|   8000  | 57.8 | **59.8** | 58.4 |
+|  16000  | 28.9 | 29.9 | **34.6** |
+|  32000  | 13.7 | 14.8 | **17.3** |
+
+**Reading it:**
+- **≤ 8000 sprites** — all three are pinned at the 60fps cap (not render-bound). rsxgl sits
+  ~3% under because the multi-texture workload forces one `glDrawArrays` per sprite (fixed
+  draw-call overhead); it's cap-bound anyway.
+- **16000–32000 (render-bound)** — **rsxgl is fastest**: +15% over raylib and +20–26% over
+  tiny3d. The optimized "one VBO upload + N cheap draws per frame" path scales better than
+  rlgl's and ya2d's per-sprite work.
+- **Quality caveat — raylib drops sprites under load.** From ~2000 sprites raylib renders
+  **white squares** in place of many sprites (rlgl can't draw them all). So raylib's numbers
+  above 2000 are inflated — it's partly fast because it's drawing *less*. tiny3d and rsxgl
+  render every sprite. A backend holding 17fps drawing all 32000 correctly beats one showing
+  a higher number while dropping half of them.
+
+**Bottom line:** the optimized raw-RSXGL backend is the strongest of the three at scale —
+fastest under heavy load, one of only two that render every sprite correctly, and the only
+one with clean debug-grid text. The turning point was the batcher rework (one `glBufferData`
+per frame instead of one per draw run): it took rsxgl from ~15× slower than the others to the
+outright winner. See the `perf(rsxgl)` commit.
+
 ## Tuning
 
-Stage targets / frame counts are `const`s at the top of `Scene_Benchmark.h`. If even
-4000 sprites stays at 60fps for all three (fast host), raise the targets; if the run is
-too long, lower `STAGE_FRAMES`.
+Stage targets / frame counts are `const`s at the top of `Scene_Benchmark.h` (rsxgl's frame
+buffer `BATCH_MAX_VERTS/RUNS` in `sfml_backend.cpp` must fit the largest stage in one upload).
+If even the top stage stays at 60fps for all three (fast host), raise the targets; if the run
+is too long, lower `STAGE_FRAMES`.
