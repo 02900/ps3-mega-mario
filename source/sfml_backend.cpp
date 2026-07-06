@@ -47,7 +47,7 @@ EGLSurface g_surf = 0;
 EGLContext g_ctx = 0;
 int   g_w = 1280, g_h = 720;        // real framebuffer size
 GLuint g_prog = 0;
-GLint  g_uProj = -1, g_uTex = -1, g_uSwz = -1;
+GLint  g_uProj = -1, g_uTex = -1, g_uSwzMat = -1;
 GLuint g_vao = 0, g_vbo = 0;
 GLuint g_white = 0, g_font = 0;
 bool  g_ready = false;
@@ -67,27 +67,34 @@ const char *VS =
   "void main(void) { gl_Position = Proj * vec4(position, 0.0, 1.0); v_uv = texcoord; v_col = color; }\n";
 
 // DEBUG: RSXGL samples our uploaded RGBA bytes in some rotated channel order.
-// uSwz picks a permutation at runtime (cycled with SELECT) so we can find the
-// right one on hardware without reflashing per guess. Once known, this collapses
-// to a single fixed swizzle.
+// A channel-permutation matrix (set from the CPU, cycled with SELECT) reorders
+// the sampled colour — no int uniform / no fragment-shader branching, which RSXGL's
+// Cg compiler mishandles. Collapses to a single fixed swizzle once known.
 const char *FS =
   "#version 130\n"
   "varying vec2 v_uv;\n"
   "varying vec4 v_col;\n"
   "uniform sampler2D tex;\n"
-  "uniform int uSwz;\n"
-  "void main(void) {\n"
-  "  vec4 t = texture2D(tex, v_uv);\n"
-  "  vec4 c = t;\n"
-  "  if      (uSwz == 1) c = t.bgra;\n"
-  "  else if (uSwz == 2) c = t.argb;\n"
-  "  else if (uSwz == 3) c = t.abgr;\n"
-  "  else if (uSwz == 4) c = t.gbar;\n"
-  "  else if (uSwz == 5) c = t.grba;\n"
-  "  else if (uSwz == 6) c = t.ragb;\n"
-  "  else if (uSwz == 7) c = t.bagr;\n"
-  "  gl_FragColor = c * v_col;\n"
-  "}\n";
+  "uniform mat4 uSwzMat;\n"
+  "void main(void) { gl_FragColor = (uSwzMat * texture2D(tex, v_uv)) * v_col; }\n";
+
+// Per-mode channel permutation: source index feeding output (r,g,b,a).
+// 0 RGBA 1 BGRA 2 ARGB 3 ABGR 4 GBAR 5 GRBA 6 RAGB 7 BAGR
+const int SWZ_PERM[8][4] = {
+	{0,1,2,3}, {2,1,0,3}, {3,0,1,2}, {3,2,1,0},
+	{1,2,3,0}, {1,0,2,3}, {0,3,1,2}, {2,3,1,0}
+};
+
+// Upload the permutation matrix for the current g_swz mode (column-major:
+// element (row i, col j) is m[j*4+i]; output_i = sampled[perm_i]).
+void set_swz_uniform()
+{
+	float m[16];
+	memset(m, 0, sizeof m);
+	const int *p = SWZ_PERM[g_swz & 7];
+	for (int i = 0; i < 4; i++) m[p[i] * 4 + i] = 1.0f;
+	glUniformMatrix4fv(g_uSwzMat, 1, GL_FALSE, m);
+}
 
 void mat_ortho(float *m, float l, float r, float b, float t, float n, float f)
 {
@@ -263,9 +270,9 @@ void platform_init()
 	glUseProgram(g_prog);
 	g_uProj = glGetUniformLocation(g_prog, "Proj");
 	g_uTex = glGetUniformLocation(g_prog, "tex");
-	g_uSwz = glGetUniformLocation(g_prog, "uSwz");
+	g_uSwzMat = glGetUniformLocation(g_prog, "uSwzMat");
 	glUniform1i(g_uTex, 0);
-	glUniform1i(g_uSwz, g_swz);
+	set_swz_uniform();
 	float proj[16];
 	mat_ortho(proj, 0.0f, (float)g_w, (float)g_h, 0.0f, -1.0f, 1.0f);
 	glUniformMatrix4fv(g_uProj, 1, GL_FALSE, proj);
@@ -380,7 +387,7 @@ void RenderWindow::clear(const Color &c)
 	glClearColor(c.r / 255.0f, c.g / 255.0f, c.b / 255.0f, c.a / 255.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glUseProgram(g_prog);
-	glUniform1i(g_uSwz, g_swz);   // DEBUG: current channel-swizzle mode
+	set_swz_uniform();   // DEBUG: current channel-swizzle mode
 }
 
 void RenderWindow::display()
