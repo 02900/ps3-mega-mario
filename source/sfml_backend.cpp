@@ -14,6 +14,7 @@
  * so the mapping is direct.
  */
 #include "raylib.h"
+#include "rlgl.h"        // rlDrawRenderBatchActive() — force-flush the render batch
 
 #include <SFML/Graphics.hpp>
 #include "asset_registry.h"
@@ -89,6 +90,11 @@ void draw_text(const char *s, float x, float y, float size,
 {
 	DrawTextEx(GetFontDefault(), s, (Vector2){ x, y }, size, size / 10.0f,
 	           (Color){ r, g, b, a });
+	// Flush now so this string is its own small draw call. Consecutive text (all
+	// sharing the font atlas texture) otherwise merges into one huge glDrawElements,
+	// which RSXGL corrupts (stray glyph vertices -> white streaks). Small per-string
+	// draws behave like sprites (each its own texture/draw) and render cleanly.
+	rlDrawRenderBatchActive();
 }
 
 }  // namespace

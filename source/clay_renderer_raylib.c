@@ -14,6 +14,7 @@
 #include "clay.h"
 #include "clay_renderer.h"
 #include "raylib.h"
+#include "rlgl.h"        // rlDrawRenderBatchActive() — force-flush per text
 
 #include <string.h>
 #include <stdlib.h>
@@ -105,6 +106,7 @@ void clay_render(Clay_RenderCommandArray commands)
 			slice_to_cstr(t.stringContents, buf, sizeof buf);
 			DrawTextEx(g_font, buf, (Vector2){ x, y }, (float)t.fontSize * sy,
 			           1.0f * sy, to_rl(t.textColor));
+			rlDrawRenderBatchActive();   // own draw call per text (avoid RSXGL big-batch text corruption)
 			break;
 		}
 
