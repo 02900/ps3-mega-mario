@@ -382,12 +382,21 @@ void Scene_Play::sRender() {
     float nextGridX = leftX - ((int)leftX % (int)m_gridSize.x);
     for (float x = nextGridX; x < rightX; x += m_gridSize.x)
       drawLine(Vec2(x, 0), Vec2(x, height()));
+    // Label only every 4th cell. Each text string is its own draw call on the
+    // raylib/RSXGL backend (which corrupts big merged text batches); keeping the
+    // per-frame label count low stays within the render batch's buffer count so
+    // there's no stray-glyph corruption or VBO-reuse flicker. Grid lines are full.
+    const int LABEL_STRIDE = 4;
     for (float y = 0; y < height(); y += m_gridSize.y) {
       drawLine(Vec2(leftX, height() - y), Vec2(rightX, height() - y));
+      int yCellI = (int)y / (int)m_gridSize.y;
+      if (yCellI % LABEL_STRIDE != 0)
+        continue;
       for (float x = nextGridX; x < rightX; x += m_gridSize.x) {
-        std::string xCell = std::to_string((int)x / (int)m_gridSize.x);
-        std::string yCell = std::to_string((int)y / (int)m_gridSize.y);
-        m_gridText.setString("(" + xCell + "," + yCell + ")");
+        int xCellI = (int)x / (int)m_gridSize.x;
+        if (xCellI % LABEL_STRIDE != 0)
+          continue;
+        m_gridText.setString("(" + std::to_string(xCellI) + "," + std::to_string(yCellI) + ")");
         m_gridText.setPosition(x + 3, height() - y - m_gridSize.y + 6);
         m_game->window().draw(m_gridText);
       }

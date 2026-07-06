@@ -92,14 +92,13 @@ void draw_text(const char *s, float x, float y, float size,
 	           (Color){ r, g, b, a });
 	// Consecutive text all shares the font atlas texture, so rlgl merges it into one
 	// huge glDrawElements that RSXGL corrupts (stray glyph vertices -> white streaks).
-	// Flush every few strings to keep each text draw call small (like sprites, which
-	// render cleanly). NOT per-string: that's ~500 flushes/frame for the debug grid,
-	// which tanks FPS and, cycling the batch VBO faster than the buffer count, makes
-	// the RSX reuse a buffer mid-frame while still reading it -> sprites flicker. A
-	// coarser stride keeps flush count under the image's batch-buffer count.
-	static unsigned s_text_ctr = 0;
-	if ((++s_text_ctr % 16) == 0)
-		rlDrawRenderBatchActive();
+	// Flush after each string so every text is its own tiny draw call (~a few quads),
+	// which RSXGL renders cleanly (like sprites). This cycles the batch VBO once per
+	// string, so callers must keep the number of strings per frame under the image's
+	// batch-buffer count (RL_DEFAULT_BATCH_BUFFERS) or the RSX reuses a VBO mid-frame
+	// while still reading it -> flicker. The debug grid is thinned (label every 4th
+	// cell) to stay well under that.
+	rlDrawRenderBatchActive();
 }
 
 }  // namespace
