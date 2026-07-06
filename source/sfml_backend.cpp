@@ -90,11 +90,16 @@ void draw_text(const char *s, float x, float y, float size,
 {
 	DrawTextEx(GetFontDefault(), s, (Vector2){ x, y }, size, size / 10.0f,
 	           (Color){ r, g, b, a });
-	// Flush now so this string is its own small draw call. Consecutive text (all
-	// sharing the font atlas texture) otherwise merges into one huge glDrawElements,
-	// which RSXGL corrupts (stray glyph vertices -> white streaks). Small per-string
-	// draws behave like sprites (each its own texture/draw) and render cleanly.
-	rlDrawRenderBatchActive();
+	// Consecutive text all shares the font atlas texture, so rlgl merges it into one
+	// huge glDrawElements that RSXGL corrupts (stray glyph vertices -> white streaks).
+	// Flush every few strings to keep each text draw call small (like sprites, which
+	// render cleanly). NOT per-string: that's ~500 flushes/frame for the debug grid,
+	// which tanks FPS and, cycling the batch VBO faster than the buffer count, makes
+	// the RSX reuse a buffer mid-frame while still reading it -> sprites flicker. A
+	// coarser stride keeps flush count under the image's batch-buffer count.
+	static unsigned s_text_ctr = 0;
+	if ((++s_text_ctr % 16) == 0)
+		rlDrawRenderBatchActive();
 }
 
 }  // namespace
