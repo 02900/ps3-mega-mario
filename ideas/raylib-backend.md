@@ -86,3 +86,7 @@ exposed a real RSXGL/rlgl limitation worth recording:
 
 Tuning levers if revisited: more batch buffers (image) to allow denser labels, a coarser
 `LABEL_STRIDE`, or a lines-only grid (no text = no flush issue).
+
+**Solved by the third backend:** `ideas/rsxgl-backend.md` (branch `rsxgl-backend`) renders
+2D directly on RSXGL, so it controls batching and keeps each text string its own small
+draw — the debug grid is clean there. That's why that backend exists.
