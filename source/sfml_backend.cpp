@@ -21,6 +21,9 @@
 #include "audio.h"       // MikMod music + SFX — extern "C" hooks
 #include "clay_menu.h"   // Clay menu (rendered via raylib in clay_renderer_raylib.c)
 
+// Identifies this backend in the benchmark output file (Scene_Benchmark.cpp).
+const char *BACKEND_NAME = "raylib";
+
 #include <cstring>
 #include <cstddef>
 
