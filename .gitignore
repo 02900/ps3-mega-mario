@@ -26,3 +26,4 @@ last_frame*
 tiles
 *.code-workspace
 *.pyc
+bench-comparison.csv
