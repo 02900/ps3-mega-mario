@@ -1,6 +1,7 @@
 #include "Scene_Menu.h"
 #include "GameEngine.h"
 #include "Scene_Play.h"
+#include "Scene_Benchmark.h"
 #include "clay_menu.h"  // UI rendered in Clay, not hand-drawn sf::Text (PATTERNS §3.5)
 
 Scene_Menu::Scene_Menu() {}
@@ -19,15 +20,17 @@ void Scene_Menu::init() {
 
   m_title = "MEGA MARIO";
 
-  m_menuStrings = std::vector<std::string>(3);
+  m_menuStrings = std::vector<std::string>(4);
   m_menuStrings[0] = "LEVEL 1";
   m_menuStrings[1] = "LEVEL 2";
   m_menuStrings[2] = "LEVEL 3";
+  m_menuStrings[3] = "BENCHMARK";
 
-  m_levelPaths = std::vector<std::string>(3);
+  m_levelPaths = std::vector<std::string>(4);
   m_levelPaths[0] = "../bin/level1.txt";
   m_levelPaths[1] = "../bin/level2.txt";
   m_levelPaths[2] = "../bin/level3.txt";
+  m_levelPaths[3] = "";  // benchmark: no level file
 }
 
 void Scene_Menu::onEnd() { m_game->window().close(); }
@@ -69,9 +72,14 @@ void Scene_Menu::sDoAction(const Action &action) {
           (int)m_menuStrings.size();
 
     else if (action.name() == "Level Selected") {
-      std::shared_ptr<Scene_Play> scene = std::make_shared<Scene_Play>(
-          m_game, m_levelPaths[m_selectedMenuIndex]);
-      m_game->changeScene("play", scene, false);
+      if (m_selectedMenuIndex == 3) {  // BENCHMARK
+        m_game->changeScene("benchmark",
+                            std::make_shared<Scene_Benchmark>(m_game), false);
+      } else {
+        std::shared_ptr<Scene_Play> scene = std::make_shared<Scene_Play>(
+            m_game, m_levelPaths[m_selectedMenuIndex]);
+        m_game->changeScene("play", scene, false);
+      }
     }
   }
 }

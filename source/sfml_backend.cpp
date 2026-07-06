@@ -20,6 +20,9 @@
 #include "clay_menu.h"   // Clay UI (menu) — extern "C" hooks
 #include "audio.h"       // MikMod music + SFX — extern "C" hooks
 
+// Identifies this backend in the benchmark output file (Scene_Benchmark.cpp).
+const char *BACKEND_NAME = "tiny3d";
+
 // tiny3d's 2D canvas is a fixed 848x512 regardless of output resolution
 // (tiny3d_Project2D); the game renders in a 1920x1080 virtual window.
 #define T3D_CANVAS_W 848.0f

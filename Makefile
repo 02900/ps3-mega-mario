@@ -40,7 +40,7 @@ PKGFILES	:=	pkgfiles
 # Libraries to link (2D sprites, fonts, audio, image decode, net, UI)
 #---------------------------------------------------------------------------------
 LIBS		:=	-lya2d -lfont3d -ltiny3d -lsimdmath \
-			-lgcm_sys -lrsx -lio -lsysutil -lrt -llv2 \
+			-lgcm_sys -lrsx -lio -lsysutil -lrt -llv2 -lsysfs \
 			-lpngdec -ljpgdec -lsysmodule -lm -lsysfs \
 			-lnet -lfreetype -lz -lmikmod -laudio \
 			-lmini18n -lnetctl
