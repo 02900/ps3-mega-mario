@@ -206,5 +206,5 @@ entity creation, rendered with **SFML 2.6**:
 ## Reference
 
 - Original game: `mega-mario` (sibling checkout) — keep `bin/assets/` + `.txt` configs.
-- Conventions/toolchain: `docs/PATTERNS.md`, `ghcr.io/02900/ps3-toolchain:latest`,
+- Conventions/toolchain: `docs/PATTERNS.md`, `ghcr.io/02900/ps3-toolchain-tiny3d:latest`,
   and the sister port [02900/ki-blast-arena](https://github.com/02900/ki-blast-arena).

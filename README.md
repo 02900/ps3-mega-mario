@@ -30,10 +30,10 @@ inside the image:
 
 ```bash
 # Build  ->  produces src.elf / src.self in the project root
-docker run --rm -v "$PWD":/src -w /src ghcr.io/02900/ps3-toolchain make
+docker run --rm -v "$PWD":/src -w /src ghcr.io/02900/ps3-toolchain-tiny3d make
 
 # Build an installable PKG (for the XMB)
-docker run --rm -v "$PWD":/src -w /src ghcr.io/02900/ps3-toolchain make pkg
+docker run --rm -v "$PWD":/src -w /src ghcr.io/02900/ps3-toolchain-tiny3d make pkg
 ```
 
 Or use the helper wrappers (they auto-retry the toolchain's transient emulation segfaults):

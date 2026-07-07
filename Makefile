@@ -4,7 +4,7 @@
 # PS3 homebrew port of "mega-mario" (a C++/SFML ECS platformer). The original is
 # already C++, so this builds .cpp with ppu-g++; the SFML layer is replaced by a
 # PS3 backend (ya2d / pad / MikMod / Clay). Build with the Docker toolchain:
-#   docker run --rm -v "$PWD":/src -w /src ghcr.io/02900/ps3-toolchain make
+#   docker run --rm -v "$PWD":/src -w /src ghcr.io/02900/ps3-toolchain-tiny3d make
 #---------------------------------------------------------------------------------
 .SUFFIXES:
 #---------------------------------------------------------------------------------
